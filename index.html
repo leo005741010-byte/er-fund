@@ -13,8 +13,15 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="科基金">
 <script>
+// 有新版時自動換掉舊快取並重新載入一次，使用者不用手動清快取
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});
+  let _reloading=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(_reloading) return; _reloading=true; location.reload();
+  });
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').then(r=>{ r.update(); }).catch(()=>{});
+  });
 }
 </script>
 <style>
@@ -164,18 +171,50 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
 .deskonly{display:inline-block;}
 @media(max-width:760px){.deskonly{display:none!important;}}
 
-/* ---------- 發票照片 ---------- */
+/* ---------- 照片（可多張） ---------- */
 .photobox{border:1.5px dashed var(--line);border-radius:10px;padding:14px;text-align:center;background:#fafbfd;}
 .photobox .ph-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;}
-.photobox img{max-width:100%;max-height:200px;border-radius:8px;display:block;margin:0 auto 9px;box-shadow:0 2px 8px rgba(0,0,0,.16);}
 .photobox .ph-tip{font-size:12px;color:var(--muted);margin-bottom:9px;}
-.thumb{width:26px;height:26px;border-radius:5px;object-fit:cover;border:1px solid var(--line);vertical-align:middle;cursor:pointer;}
-.icn{background:none;border:none;font-size:16px;padding:0 3px;line-height:1;}
-#viewer{position:fixed;inset:0;background:rgba(8,12,18,.9);z-index:960;display:none;align-items:center;justify-content:center;flex-direction:column;padding:16px;}
+#m-photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;
+  margin-bottom:10px;}
+#m-photo-grid:empty{display:none;}
+.pcell{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#fff;}
+.pcell img{width:100%;height:100%;object-fit:cover;cursor:zoom-in;display:block;}
+.pcell .px{position:absolute;top:3px;right:3px;width:24px;height:24px;border-radius:50%;border:none;
+  background:rgba(192,57,43,.92);color:#fff;font-size:15px;font-weight:900;line-height:1;
+  display:flex;align-items:center;justify-content:center;}
+.pcell .pn{position:absolute;left:3px;bottom:3px;background:rgba(0,0,0,.6);color:#fff;font-size:10.5px;
+  font-weight:700;padding:1px 6px;border-radius:9px;}
+.pcell.busy{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11.5px;}
+.icn{background:none;border:none;font-size:16px;padding:0 3px;line-height:1;position:relative;}
+.icn .cnt{position:absolute;top:-4px;right:-4px;background:var(--navy);color:#fff;font-size:9px;
+  font-weight:800;border-radius:9px;padding:0 4px;line-height:13px;}
+#viewer{position:fixed;inset:0;background:rgba(8,12,18,.92);z-index:960;display:none;align-items:center;justify-content:center;flex-direction:column;padding:16px;}
 #viewer.on{display:flex;}
-#viewer img{max-width:100%;max-height:80vh;border-radius:8px;background:#fff;}
+#viewer img{max-width:100%;max-height:74vh;border-radius:8px;background:#fff;}
 #viewer .vcap{color:#fff;font-size:13px;font-weight:700;margin-bottom:10px;text-align:center;}
-#viewer .vclose{margin-top:14px;background:#fff;color:#22303f;border:none;border-radius:8px;padding:11px 26px;font-size:15px;font-weight:800;}
+#viewer .vnav{display:flex;align-items:center;gap:14px;margin-top:14px;}
+#viewer .vnav button{background:rgba(255,255,255,.9);color:#22303f;border:none;border-radius:8px;
+  padding:11px 20px;font-size:15px;font-weight:800;}
+#viewer .vnav button:disabled{opacity:.35;}
+#viewer .vidx{color:#fff;font-size:14px;font-weight:800;min-width:52px;text-align:center;}
+
+/* ---------- 月份選擇器 ---------- */
+.mbtn{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 14px;
+  font-size:14.5px;font-weight:700;color:var(--navy);}
+.mbtn:active{background:#eef3f9;}
+.mp-yr{display:flex;align-items:center;justify-content:center;gap:18px;margin-bottom:13px;}
+.mp-yr button{background:#eef1f6;border:none;border-radius:8px;width:40px;height:38px;font-size:20px;
+  font-weight:800;color:var(--navy);}
+.mp-yr span{font-size:19px;font-weight:800;min-width:96px;text-align:center;}
+.mp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
+.mp-grid button{background:#f4f7fb;border:1.5px solid transparent;border-radius:9px;padding:13px 2px;
+  font-size:14.5px;font-weight:700;color:#3c4a5a;position:relative;}
+.mp-grid button.has{background:#fff;border-color:#c7d7e8;color:var(--navy);}
+.mp-grid button.has::after{content:'';position:absolute;left:50%;bottom:6px;transform:translateX(-50%);
+  width:5px;height:5px;border-radius:50%;background:var(--gold);}
+.mp-grid button.on{background:var(--navy);border-color:var(--navy);color:#fff;}
+.mp-grid button.on::after{background:#fff;}
 
 /* ---------- 簽名 ---------- */
 #sigpad-wrap{border:2px solid var(--navy);border-radius:10px;background:#fff;touch-action:none;overflow:hidden;position:relative;}
@@ -229,9 +268,15 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
 
   <!-- ============ 總覽 ============ -->
   <div class="pane active" id="pane-dash">
+    <div class="taxbar">
+      <span class="tl">🧾 開發票統編</span>
+      <span class="tn" id="dash-taxid"></span>
+      <button type="button" class="btn sm gray" onclick="copyTaxId()">複製</button>
+    </div>
     <div class="filters">
       <button class="btn gray sm" onclick="shiftMonth(-1)">◀ 上月</button>
-      <select id="dash-month" onchange="setMonth(this.value)"></select>
+      <input type="hidden" id="dash-month">
+      <button class="mbtn" id="dash-month-btn" onclick="openMonthPicker('dash-month')"></button>
       <button class="btn gray sm" onclick="shiftMonth(1)">下月 ▶</button>
     </div>
     <div class="cards" id="dash-cards"></div>
@@ -248,7 +293,8 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
   <!-- ============ 支出明細 ============ -->
   <div class="pane" id="pane-exp">
     <div class="filters">
-      <select id="f-month" onchange="renderExp()"></select>
+      <input type="hidden" id="f-month" value="all">
+      <button class="mbtn" id="f-month-btn" onclick="openMonthPicker('f-month')"></button>
       <select id="f-payer" onchange="renderExp()"></select>
       <input type="search" id="f-kw" placeholder="搜尋用途/備註" oninput="renderExp()" style="flex:1;min-width:120px;">
     </div>
@@ -324,7 +370,8 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
       <h3>💵 每月入帳</h3>
       <div class="sec-body">
         <div class="row2" style="margin-bottom:10px;">
-          <select id="inc-month"></select>
+          <input type="hidden" id="inc-month">
+          <button class="mbtn" id="inc-month-btn" onclick="openMonthPicker('inc-month')" style="width:100%;"></button>
           <input type="number" id="inc-amt" placeholder="入帳金額" inputmode="numeric">
         </div>
         <input type="text" id="inc-note" placeholder="備註（可留空）" style="width:100%;padding:10px 11px;border:1.5px solid var(--line);border-radius:8px;margin-bottom:10px;">
@@ -360,6 +407,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
         </div>
         <div class="hint" style="font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.6;">
           資料即時同步到雲端，所有裝置共用。<br>
+          版本：<b id="set-ver"></b>　<a href="javascript:void(0)" onclick="forceUpdate()" style="color:var(--navy);font-weight:700;">強制更新</a><br>
           雲端位置：<span id="set-cloud" style="word-break:break-all;"></span>
           <button class="btn gray sm" style="margin-top:6px;" onclick="openCloudSettings()">變更雲端網址</button>
         </div>
@@ -389,17 +437,16 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
         <span class="tn" id="m-taxid"></span>
         <button type="button" class="btn sm gray" onclick="copyTaxId()">複製</button>
       </div>
-      <div class="fld"><label>發票／收據照片</label>
+      <div class="fld"><label>照片（發票、收據、買到的東西…可多張）</label>
         <div class="photobox" id="m-photobox">
-          <div id="m-photo-view"></div>
-          <div class="ph-tip" id="m-photo-tip">拍照或從相簿選一張，系統會自動壓縮</div>
+          <div id="m-photo-grid"></div>
+          <div class="ph-tip" id="m-photo-tip">可以拍多張：發票一張、東西一張，系統會自動壓縮</div>
           <div class="ph-btns">
             <button type="button" class="btn sm" onclick="document.getElementById('m-cam').click()">📷 拍照</button>
             <button type="button" class="btn sm gray" onclick="document.getElementById('m-file').click()">🖼️ 選照片</button>
-            <button type="button" class="btn sm red" id="m-photo-del" onclick="removePhoto()" style="display:none;">移除</button>
           </div>
           <input type="file" id="m-cam" accept="image/*" capture="environment" style="display:none" onchange="pickPhoto(this)">
-          <input type="file" id="m-file" accept="image/*" style="display:none" onchange="pickPhoto(this)">
+          <input type="file" id="m-file" accept="image/*" multiple style="display:none" onchange="pickPhoto(this)">
         </div>
       </div>
       <div class="fld"><label>備註</label><textarea id="m-note" placeholder="收據編號、參與人員…"></textarea></div>
@@ -433,6 +480,23 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
   </div>
 </div>
 
+<!-- ============ 月份選擇器 ============ -->
+<div class="mask" id="mp-mask">
+  <div class="modal" style="max-width:340px;">
+    <h3 id="mp-title">選擇月份</h3>
+    <div class="mb">
+      <div class="mp-yr">
+        <button onclick="mpYear(-1)">‹</button>
+        <span id="mp-year"></span>
+        <button onclick="mpYear(1)">›</button>
+      </div>
+      <div class="mp-grid" id="mp-grid"></div>
+      <button class="btn gray" id="mp-all" style="width:100%;margin-top:11px;" onclick="pickMonth('all')">全部月份</button>
+    </div>
+    <div class="mf"><button class="btn gray" onclick="closeMonthPicker()">取消</button></div>
+  </div>
+</div>
+
 <!-- ============ 取消簽收確認 ============ -->
 <div class="mask" id="unsign-mask">
   <div class="modal" style="max-width:440px;">
@@ -460,7 +524,12 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
 <div id="viewer" onclick="if(event.target.id==='viewer')closeViewer()">
   <div class="vcap" id="viewer-cap"></div>
   <img id="viewer-img" alt="">
-  <button class="vclose" onclick="closeViewer()">關閉</button>
+  <div class="vnav" id="viewer-nav" style="display:none;">
+    <button id="viewer-prev" onclick="vStep(-1)">‹ 上一張</button>
+    <span class="vidx" id="viewer-idx"></span>
+    <button id="viewer-next" onclick="vStep(1)">下一張 ›</button>
+  </div>
+  <div class="vnav"><button onclick="closeViewer()">關閉</button></div>
 </div>
 
 <div id="toast"></div>
@@ -479,11 +548,12 @@ const DEFAULT_CLOUD_URL='https://tenchener-488d2-default-rtdb.firebaseio.com/';
 const DB_REF='erFundData';
 const FILES_REF='erFundFiles';   // 照片/簽名另存一支，帳目同步時不會被拖慢
 const TAX_ID='26708183';         // 醫院統一編號（請廠商開發票用）
+const APP_VER='2026.07.21e';     // 版本；設定頁可看，用來確認是否已更新到最新
 
 const ST_LABEL={claimed:'請款中',paid:'已到帳'};
 
 let state={
-  expenses:{},          // {id:{id,date,purpose,cat,amount,payer,status,note,by,ts,upd,hasPhoto,sigId,signBy,signAt}}
+  expenses:{},          // {id:{id,date,purpose,amount,payer,status,note,by,ts,upd,photos[],sigId,signBy,signAt}}
   income:{},            // {'2026-07':{amount,note}}
   members:[],           // 姓名只存雲端，不寫進公開原始碼
   opening:0
@@ -491,7 +561,8 @@ let state={
 let viewYM=ymOf(new Date());
 let stFilter='all';
 let editId=null;
-let mPhoto=null, mPhotoChanged=false;   // 編輯中的照片 dataURL
+let mPhotos=[];      // 編輯中的照片 [{pid, data}]（data 為 null 表示雲端有但還沒載完）
+let mRemoved=[];     // 這次編輯要刪掉的既有照片 pid
 let _me=localStorage.getItem(ME_KEY)||'';
 
 // ============================================================
@@ -543,6 +614,11 @@ function normalize(){
     e.amount=Number(e.amount)||0;
     // 舊版三段狀態（未請款/已請款待撥/已付款）併成兩段：請款中 / 已到帳
     if(e.status!=='paid') e.status='claimed';
+    // 舊版單張照片存在 photo/<支出id>，轉成多張的清單格式
+    if(!e.photos && e.hasPhoto) e.photos=[e.id];
+    if(e.photos && !Array.isArray(e.photos)) e.photos=Object.values(e.photos);
+    e.photos=(e.photos||[]).filter(Boolean);
+    e.hasPhoto=e.photos.length>0;
   });
 }
 
@@ -662,7 +738,8 @@ function byPayer(arr){
 // 渲染：總覽
 // ============================================================
 function renderDash(){
-  fillMonthSelect('dash-month',viewYM);
+  setMonthField('dash-month',viewYM);
+  document.getElementById('dash-taxid').textContent=TAX_ID;
   const inc=incomeOf(viewYM), exs=expOfMonth(viewYM), out=sum(exs);
   const bal=balance();
   const owe=sum(owedList('all'));
@@ -728,7 +805,7 @@ function renderExp(){
     <td class="num"><b>${nt(e.amount)}</b></td>
     <td>${esc(e.payer||'-')}</td>
     <td><button class="pill ${e.status}" onclick="cycleStatus('${e.id}')" title="點擊切換狀態">${ST_LABEL[e.status]}</button></td>
-    <td>${e.hasPhoto?`<button class="icn" onclick="viewPhoto('${e.id}')" title="檢視發票">🧾</button>`:'<span style="color:#ccd3dc">—</span>'}</td>
+    <td>${e.hasPhoto?`<button class="icn" onclick="viewPhoto('${e.id}')" title="檢視照片">🧾${e.photos.length>1?`<span class="cnt">${e.photos.length}</span>`:''}</button>`:'<span style="color:#ccd3dc">—</span>'}</td>
     <td>${e.sigId?`<button class="icn" onclick="viewSig('${e.id}')" title="檢視簽名">✍️</button>`:'<span style="color:#ccd3dc">—</span>'}</td>
     <td><button class="btn sm gray" onclick="openExp('${e.id}')">編輯</button></td>
   </tr>`).join('') : '<tr><td colspan="8"><div class="empty">沒有符合條件的資料</div></td></tr>';
@@ -740,7 +817,7 @@ function renderExp(){
     ${e.note?`<div class="meta" style="margin-top:5px">📝 ${esc(e.note)}</div>`:''}
     ${e.signBy?`<div class="meta" style="margin-top:5px">✍️ ${esc(e.signBy)} 已簽收${e.signAt?'（'+new Date(e.signAt).toLocaleDateString('zh-TW')+'）':''}</div>`:''}
     <div class="acts"><button class="btn sm gray" onclick="openExp('${e.id}')">編輯</button>
-      ${e.hasPhoto?`<button class="btn sm gray" onclick="viewPhoto('${e.id}')">🧾 發票</button>`:''}
+      ${e.hasPhoto?`<button class="btn sm gray" onclick="viewPhoto('${e.id}')">🧾 照片 ${e.photos.length>1?e.photos.length:''}</button>`:''}
       ${e.sigId?`<button class="btn sm gray" onclick="viewSig('${e.id}')">✍️ 簽名</button>`:''}</div>
   </div>`).join('') : '<div class="empty">沒有符合條件的資料</div>';
 
@@ -881,10 +958,8 @@ function renderSet(){
   me.innerHTML='<option value="">（未設定）</option>'+state.members.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
   me.value=_me;
 
-  fillMonthSelect('inc-month',viewYM,false);
-  const im=document.getElementById('inc-month');
-  im.onchange=()=>{ const d=state.income[im.value]||{}; document.getElementById('inc-amt').value=d.amount||''; document.getElementById('inc-note').value=d.note||''; };
-  im.onchange();
+  if(!document.getElementById('inc-month').value) setMonthField('inc-month',viewYM);
+  loadIncomeForm();
 
   const ks=Object.keys(state.income).sort().reverse();
   document.getElementById('inc-list').innerHTML= ks.length?
@@ -898,10 +973,32 @@ function renderSet(){
     `<div class="mtag">${esc(m)}<span class="x" onclick="delMember(${i})">×</span></div>`).join('') : '<div class="empty">尚無成員</div>';
 
   document.getElementById('set-taxid').textContent=TAX_ID;
+  document.getElementById('set-ver').textContent=APP_VER;
   document.getElementById('set-opening').value=state.opening||0;
   document.getElementById('set-cloud').textContent=getCloudUrl()+DB_REF;
 }
+function loadIncomeForm(){
+  const ym=document.getElementById('inc-month').value;
+  const d=state.income[ym]||{};
+  document.getElementById('inc-amt').value=d.amount||'';
+  document.getElementById('inc-note').value=d.note||'';
+}
 function setMe(v){ _me=v; localStorage.setItem(ME_KEY,v); showToast(v?('已設定為 '+v):'已清除'); }
+// 清掉快取重抓最新版（手機上偶爾會卡在舊版）
+async function forceUpdate(){
+  showToast('更新中…');
+  try{
+    if('serviceWorker' in navigator){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r=>r.unregister()));
+    }
+    if(window.caches){
+      const keys=await caches.keys();
+      await Promise.all(keys.map(k=>caches.delete(k)));
+    }
+  }catch(e){}
+  location.reload();
+}
 function copyTaxId(){
   const done=()=>showToast('已複製統編 '+TAX_ID,'ok');
   if(navigator.clipboard&&navigator.clipboard.writeText){
@@ -970,17 +1067,20 @@ function openExp(id){
     (e.signBy?`　<span style="font-size:12.5px;color:var(--muted)">✍️ ${esc(e.signBy)} 已簽收</span>`:'');
   document.getElementById('m-del').style.display=e?'block':'none';
   document.getElementById('m-taxid').textContent=TAX_ID;
-  // 照片
-  mPhoto=null; mPhotoChanged=false; showPhoto(null);
-  if(e&&e.hasPhoto){
-    document.getElementById('m-photo-tip').textContent='載入照片中…';
-    fileGet('photo/'+e.id).then(d=>{ if(editId===e.id){ mPhoto=d; showPhoto(d); } })
-      .catch(()=>{ document.getElementById('m-photo-tip').textContent='照片載入失敗（需連線）'; });
-  }
+  // 照片：先放佔位，再逐張從雲端載回來
+  mRemoved=[];
+  mPhotos=(e&&e.photos?e.photos:[]).map(pid=>({pid,data:null}));
+  renderPhotoGrid();
+  mPhotos.forEach(p=>{
+    fileGet('photo/'+p.pid).then(d=>{
+      if(editId!==(e&&e.id)) return;
+      p.data=d||''; renderPhotoGrid();
+    }).catch(()=>{ p.data=''; renderPhotoGrid(); });
+  });
   document.getElementById('exp-mask').classList.add('on');
   setTimeout(()=>document.getElementById('m-purpose').focus(),80);
 }
-function closeExp(){ document.getElementById('exp-mask').classList.remove('on'); editId=null; mPhoto=null; mPhotoChanged=false; }
+function closeExp(){ document.getElementById('exp-mask').classList.remove('on'); editId=null; mPhotos=[]; mRemoved=[]; }
 function saveExp(){
   const date=document.getElementById('m-date').value;
   const amount=Number(document.getElementById('m-amt').value)||0;
@@ -1002,31 +1102,34 @@ function saveExp(){
     upd: Date.now()
   };
   if(old.sigId){ e.sigId=old.sigId; e.signBy=old.signBy; e.signAt=old.signAt; }
-  e.hasPhoto = mPhotoChanged ? !!mPhoto : !!old.hasPhoto;
 
+  const keep=mPhotos.slice();
+  const uploads=keep.filter(p=>p.isNew&&p.data);
   const finish=()=>{
+    e.photos=keep.filter(p=>!p.failed).map(p=>p.pid);
+    e.hasPhoto=e.photos.length>0;
     state.expenses[id]=e;
     save(); cloudSet('expenses/'+id,e);
+    mRemoved.forEach(pid=>fileDel('photo/'+pid));
     closeExp(); viewYM=ymOfDate(date); renderAll();
     showToast(wasEdit?'已更新':'已新增 '+nt(amount),'ok');
   };
-  if(mPhotoChanged){
-    if(mPhoto){
-      showToast('上傳照片中…');
-      filePut('photo/'+id,mPhoto).then(finish)
-        .catch(err=>{ e.hasPhoto=false; showToast('照片上傳失敗：'+err.message,'warn'); finish(); });
-      return;
-    }
-    fileDel('photo/'+id);
-  }
-  finish();
+  if(!uploads.length){ finish(); return; }
+  showToast('上傳 '+uploads.length+' 張照片中…');
+  Promise.all(uploads.map(p=>
+    filePut('photo/'+p.pid,p.data).catch(()=>{ p.failed=true; })
+  )).then(()=>{
+    const bad=uploads.filter(p=>p.failed).length;
+    if(bad) showToast(bad+' 張照片上傳失敗','warn');
+    finish();
+  });
 }
 function delExp(){
   if(!editId) return;
   const e=state.expenses[editId];
   if(!confirm(`刪除「${e.purpose}」${nt(e.amount)}？此動作無法復原。`)) return;
   const id=editId;
-  if(e.hasPhoto) fileDel('photo/'+id);
+  (e.photos||[]).forEach(pid=>fileDel('photo/'+pid));
   dropSig(e);
   delete state.expenses[id];
   save(); cloudRemove('expenses/'+id);
@@ -1036,35 +1139,43 @@ function delExp(){
 // ============================================================
 // 發票照片：拍照 / 選檔 → 壓縮 → 存雲端
 // ============================================================
-function showPhoto(dataUrl){
-  const v=document.getElementById('m-photo-view'), tip=document.getElementById('m-photo-tip');
-  const del=document.getElementById('m-photo-del');
-  if(dataUrl){
-    v.innerHTML=`<img src="${dataUrl}" alt="發票" onclick="openViewer(this.src,'發票／收據')">`;
-    tip.textContent='點照片可放大；要換一張直接再拍或再選一次';
-    del.style.display='';
-  }else{
-    v.innerHTML='';
-    tip.textContent='拍照或從相簿選一張，系統會自動壓縮';
-    del.style.display='none';
-  }
+function renderPhotoGrid(){
+  const g=document.getElementById('m-photo-grid'), tip=document.getElementById('m-photo-tip');
+  g.innerHTML=mPhotos.map((p,i)=>{
+    if(p.data===null) return `<div class="pcell busy">載入中…</div>`;
+    if(p.data==='')   return `<div class="pcell busy">載入失敗<button class="px" onclick="removePhoto(${i})">×</button></div>`;
+    return `<div class="pcell"><img src="${p.data}" alt="照片${i+1}" onclick="openPhotoViewer(${i})">
+      <span class="pn">${i+1}</span><button class="px" onclick="removePhoto(${i})" title="移除">×</button></div>`;
+  }).join('');
+  tip.textContent = mPhotos.length
+    ? `已有 ${mPhotos.length} 張，可以再加（點照片放大，按 × 移除）`
+    : '可以拍多張：發票一張、東西一張，系統會自動壓縮';
 }
-function removePhoto(){
-  mPhoto=null; mPhotoChanged=true; showPhoto(null);
-  document.getElementById('m-cam').value=''; document.getElementById('m-file').value='';
+function removePhoto(i){
+  const p=mPhotos[i]; if(!p) return;
+  if(!p.isNew) mRemoved.push(p.pid);      // 既有的，儲存時才真的從雲端刪
+  mPhotos.splice(i,1); renderPhotoGrid();
 }
 function pickPhoto(inp){
-  const f=inp.files&&inp.files[0]; inp.value='';
-  if(!f) return;
-  if(!/^image\//.test(f.type)){ showToast('請選擇圖片檔','warn'); return; }
-  document.getElementById('m-photo-tip').textContent='處理照片中…';
-  compressImage(f).then(d=>{
-    mPhoto=d; mPhotoChanged=true; showPhoto(d);
-    showToast('照片已就緒（'+Math.round(d.length/1400)+' KB）','ok');
-  }).catch(err=>{
-    document.getElementById('m-photo-tip').textContent='照片讀取失敗，請換一張';
-    showToast('照片讀取失敗','warn');
-  });
+  const files=[...(inp.files||[])]; inp.value='';
+  if(!files.length) return;
+  const imgs=files.filter(f=>/^image\//.test(f.type));
+  if(!imgs.length){ showToast('請選擇圖片檔','warn'); return; }
+  document.getElementById('m-photo-tip').textContent='處理 '+imgs.length+' 張照片中…';
+  Promise.all(imgs.map(f=>compressImage(f).then(d=>({ok:true,d})).catch(()=>({ok:false}))))
+    .then(res=>{
+      let added=0,kb=0;
+      res.forEach(r=>{ if(r.ok){ mPhotos.push({pid:uid(),data:r.d,isNew:true}); added++; kb+=Math.round(r.d.length/1400); } });
+      renderPhotoGrid();
+      if(added) showToast('已加入 '+added+' 張（約 '+kb+' KB）','ok');
+      if(added<imgs.length) showToast((imgs.length-added)+' 張讀取失敗','warn');
+    });
+}
+// 檢視編輯中的照片（含還沒儲存的）
+function openPhotoViewer(i){
+  const list=mPhotos.filter(p=>p.data).map(p=>p.data);
+  const start=mPhotos.filter((p,j)=>p.data&&j<=i).length-1;
+  openViewer(list,'照片',Math.max(0,start));
 }
 // 壓到長邊 1400px 以內、並讓 base64 控制在約 400KB 以下
 async function compressImage(file){
@@ -1084,29 +1195,41 @@ async function compressImage(file){
   return out;
 }
 function viewPhoto(id){
-  const e=state.expenses[id]; if(!e) return;
+  const e=state.expenses[id]; if(!e||!e.photos||!e.photos.length) return;
   showToast('載入照片中…');
-  fileGet('photo/'+id).then(d=>{
-    if(!d){ showToast('找不到照片','warn'); return; }
-    openViewer(d,`${e.date}　${e.purpose}　${nt(e.amount)}`);
-  }).catch(()=>showToast('照片載入失敗（需連線）','warn'));
+  Promise.all(e.photos.map(pid=>fileGet('photo/'+pid).catch(()=>null))).then(list=>{
+    const imgs=list.filter(Boolean);
+    if(!imgs.length){ showToast('照片載入失敗（需連線）','warn'); return; }
+    openViewer(imgs,`${e.date}　${e.purpose}　${nt(e.amount)}`);
+  });
 }
 function viewSig(id){
   const e=state.expenses[id]; if(!e||!e.sigId) return;
   showToast('載入簽名中…');
   fileGet('sig/'+e.sigId).then(s=>{
     if(!s||!s.img){ showToast('找不到簽名','warn'); return; }
-    openViewer(s.img,`${esc(s.by||'')} 簽收 ${nt(s.amount||e.amount)}　${s.at?new Date(s.at).toLocaleString('zh-TW'):''}`);
+    openViewer([s.img],`${s.by||''} 簽收 ${nt(s.amount||e.amount)}　${s.at?new Date(s.at).toLocaleString('zh-TW'):''}`);
   }).catch(()=>showToast('簽名載入失敗（需連線）','warn'));
 }
-function openViewer(src,cap){
-  document.getElementById('viewer-img').src=src;
-  document.getElementById('viewer-cap').textContent=cap||'';
+let _vList=[],_vIdx=0,_vCap='';
+function openViewer(list,cap,start){
+  _vList=Array.isArray(list)?list:[list]; _vCap=cap||''; _vIdx=Math.min(Math.max(0,start||0),_vList.length-1);
+  drawViewer();
   document.getElementById('viewer').classList.add('on');
 }
+function drawViewer(){
+  document.getElementById('viewer-img').src=_vList[_vIdx]||'';
+  document.getElementById('viewer-cap').textContent=_vCap;
+  const multi=_vList.length>1;
+  document.getElementById('viewer-nav').style.display=multi?'':'none';
+  document.getElementById('viewer-idx').textContent=(_vIdx+1)+' / '+_vList.length;
+  document.getElementById('viewer-prev').disabled=_vIdx<=0;
+  document.getElementById('viewer-next').disabled=_vIdx>=_vList.length-1;
+}
+function vStep(d){ _vIdx=Math.min(Math.max(0,_vIdx+d),_vList.length-1); drawViewer(); }
 function closeViewer(){
   document.getElementById('viewer').classList.remove('on');
-  document.getElementById('viewer-img').src='';
+  document.getElementById('viewer-img').src=''; _vList=[];
 }
 
 // ============================================================
@@ -1175,7 +1298,7 @@ function exportCSV(all){
   if(!arr.length){ showToast('沒有可匯出的資料','warn'); return; }
   const head=['日期','用途','金額','代墊者','狀態','發票照片','簽收人','簽收時間','備註','填表人'];
   const rows=arr.map(e=>[e.date||'',e.purpose||'',e.amount||0,e.payer||'',ST_LABEL[e.status]||'',
-    e.hasPhoto?'有':'', e.signBy||'', e.signAt?new Date(e.signAt).toLocaleString('zh-TW'):'', e.note||'', e.by||'']);
+    e.hasPhoto?e.photos.length+' 張':'', e.signBy||'', e.signAt?new Date(e.signAt).toLocaleString('zh-TW'):'', e.note||'', e.by||'']);
   rows.push([]);
   rows.push(['合計','',sum(arr),'','','','','','','']);
   const csv=[head].concat(rows).map(r=>r.map(c=>{
@@ -1203,7 +1326,7 @@ function exportPDF(all){
   const rows=arr.map((e,i)=>`<tr>
     <td class="c">${i+1}</td><td>${esc(e.date||'')}</td><td>${esc(e.purpose||'')}${e.note?`<div class="nt">${esc(e.note)}</div>`:''}</td>
     <td class="r">${nt(e.amount)}</td><td>${esc(e.payer||'')}</td>
-    <td class="c">${e.hasPhoto?'✓':''}</td>
+    <td class="c">${e.hasPhoto?(e.photos.length>1?e.photos.length:'✓'):''}</td>
     <td class="c ${e.status}">${ST_LABEL[e.status]}</td>
     <td class="c">${e.signBy?esc(e.signBy)+'<div class="nt">'+(e.signAt?new Date(e.signAt).toLocaleDateString('zh-TW'):'')+'</div>':''}</td></tr>`).join('');
   const settle=names.map(n=>{
@@ -1298,13 +1421,49 @@ function dl(blob,name){
 // ============================================================
 // 月份 / 分頁
 // ============================================================
-function fillMonthSelect(elId,val,withAll){
-  const el=document.getElementById(elId); if(!el) return;
-  const ms=allMonths();
-  el.innerHTML=(withAll===undefined&&elId==='f-month'?'<option value="all">全部月份</option>':'')+
-    ms.map(m=>`<option value="${m}">${ymLabel(m)}</option>`).join('');
-  if([...el.options].some(o=>o.value===val)) el.value=val;
+function setMonthField(id,val){
+  const el=document.getElementById(id); if(!el) return;
+  el.value=val;
+  const btn=document.getElementById(id+'-btn');
+  if(btn) btn.textContent=(val==='all'?'全部月份':ymLabel(val))+' ▾';
 }
+
+// ---- 月曆式年月選擇器 ----
+let _mpTarget=null,_mpYear=0;
+function openMonthPicker(id){
+  _mpTarget=id;
+  const cur=document.getElementById(id).value;
+  _mpYear = (cur&&cur!=='all') ? parseInt(cur.slice(0,4),10) : new Date().getFullYear();
+  document.getElementById('mp-title').textContent =
+    id==='inc-month' ? '選擇入帳月份' : '選擇月份';
+  document.getElementById('mp-all').style.display = id==='f-month' ? '' : 'none';
+  drawMonthPicker();
+  document.getElementById('mp-mask').classList.add('on');
+}
+function mpYear(d){ _mpYear+=d; drawMonthPicker(); }
+function drawMonthPicker(){
+  document.getElementById('mp-year').textContent=_mpYear+' 年';
+  const cur=document.getElementById(_mpTarget).value;
+  const have=new Set(allMonths());
+  const today=ymOf(new Date());
+  let h='';
+  for(let m=1;m<=12;m++){
+    const ym=_mpYear+'-'+String(m).padStart(2,'0');
+    const cls=[have.has(ym)?'has':'', ym===cur?'on':''].filter(Boolean).join(' ');
+    h+=`<button class="${cls}" onclick="pickMonth('${ym}')"${ym===today?' title="本月"':''}>${m}月</button>`;
+  }
+  document.getElementById('mp-grid').innerHTML=h;
+}
+function pickMonth(v){
+  const id=_mpTarget;
+  setMonthField(id,v);
+  closeMonthPicker();
+  if(id==='dash-month') setMonth(v);
+  else if(id==='f-month') renderExp();
+  else if(id==='inc-month') loadIncomeForm();
+}
+function closeMonthPicker(){ document.getElementById('mp-mask').classList.remove('on'); _mpTarget=null; }
+document.getElementById('mp-mask').addEventListener('click',ev=>{ if(ev.target.id==='mp-mask') closeMonthPicker(); });
 function setMonth(v){ viewYM=v; renderAll(); }
 function shiftMonth(d){
   const [y,m]=viewYM.split('-').map(Number);
@@ -1328,9 +1487,7 @@ function renderAll(){
   const payers=[...new Set(expList().map(e=>e.payer).filter(Boolean).concat(state.members))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
   fp.innerHTML='<option value="all">全部代墊者</option>'+payers.map(p=>`<option>${esc(p)}</option>`).join('');
   fp.value=payers.includes(pv)?pv:'all';
-  const fmPrev=document.getElementById('f-month').value;
-  fillMonthSelect('f-month',fmPrev&&fmPrev!=='all'?fmPrev:'all');
-  if(fmPrev==='all'||!fmPrev) document.getElementById('f-month').value='all';
+  setMonthField('f-month',document.getElementById('f-month').value||'all');
 
   renderDash(); renderExp(); renderSettle(); renderStats(); renderSet();
 }
