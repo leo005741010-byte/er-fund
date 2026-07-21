@@ -98,7 +98,6 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
 
 /* ---------- status pill ---------- */
 .pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:800;white-space:nowrap;border:none;}
-.pill.pending{background:#fdeaea;color:#c0392b;}
 .pill.claimed{background:#fff3e0;color:#b8681a;}
 .pill.paid{background:#e6f5ec;color:#227048;}
 
@@ -154,17 +153,26 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
 .mtag{background:#eef1f6;border-radius:8px;padding:7px 9px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:7px;}
 .mtag .x{color:var(--bad);font-weight:900;cursor:pointer;font-size:15px;line-height:1;}
 
-/* ---------- gate ---------- */
-#gate{position:fixed;inset:0;background:linear-gradient(160deg,#123a61,#1a4a7a 55%,#25628f);z-index:9999;
-  display:flex;align-items:center;justify-content:center;flex-direction:column;padding:22px;}
-#gate .gi{font-size:52px;margin-bottom:10px;}
-#gate h2{color:#fff;font-size:21px;font-weight:800;margin-bottom:6px;text-align:center;}
-#gate p{color:rgba(255,255,255,.72);font-size:13px;margin-bottom:22px;text-align:center;}
-#gate input{width:100%;max-width:250px;padding:13px;border:none;border-radius:10px;text-align:center;font-size:19px;
-  letter-spacing:5px;font-weight:800;margin-bottom:12px;}
-#gate button{width:100%;max-width:250px;padding:13px;border:none;border-radius:10px;background:var(--gold);
-  color:#4a3410;font-size:16px;font-weight:800;}
-#gate .err{color:#ffc9c9;font-size:13px;font-weight:700;height:18px;margin-top:9px;}
+/* ---------- 發票照片 ---------- */
+.photobox{border:1.5px dashed var(--line);border-radius:10px;padding:14px;text-align:center;background:#fafbfd;}
+.photobox .ph-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;}
+.photobox img{max-width:100%;max-height:200px;border-radius:8px;display:block;margin:0 auto 9px;box-shadow:0 2px 8px rgba(0,0,0,.16);}
+.photobox .ph-tip{font-size:12px;color:var(--muted);margin-bottom:9px;}
+.thumb{width:26px;height:26px;border-radius:5px;object-fit:cover;border:1px solid var(--line);vertical-align:middle;cursor:pointer;}
+.icn{background:none;border:none;font-size:16px;padding:0 3px;line-height:1;}
+#viewer{position:fixed;inset:0;background:rgba(8,12,18,.9);z-index:960;display:none;align-items:center;justify-content:center;flex-direction:column;padding:16px;}
+#viewer.on{display:flex;}
+#viewer img{max-width:100%;max-height:80vh;border-radius:8px;background:#fff;}
+#viewer .vcap{color:#fff;font-size:13px;font-weight:700;margin-bottom:10px;text-align:center;}
+#viewer .vclose{margin-top:14px;background:#fff;color:#22303f;border:none;border-radius:8px;padding:11px 26px;font-size:15px;font-weight:800;}
+
+/* ---------- 簽名 ---------- */
+#sigpad-wrap{border:2px solid var(--navy);border-radius:10px;background:#fff;touch-action:none;overflow:hidden;position:relative;}
+#sigpad{display:block;width:100%;height:190px;touch-action:none;cursor:crosshair;}
+#sigpad-wrap .sig-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  color:#c3ccd8;font-size:15px;font-weight:700;pointer-events:none;}
+#sigpad-wrap.drawn .sig-hint{display:none;}
+#sigpad-wrap .sig-line{position:absolute;left:22px;right:22px;bottom:34px;border-bottom:1.5px dashed #d8dfe8;pointer-events:none;}
 
 /* ---------- toast ---------- */
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom));
@@ -172,12 +180,6 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
   opacity:0;pointer-events:none;transition:opacity .22s;box-shadow:0 4px 18px rgba(0,0,0,.3);max-width:90vw;text-align:center;}
 #toast.on{opacity:1;}
 #toast.ok{background:#227048;} #toast.warn{background:#b03a2e;}
-
-/* ---------- fab ---------- */
-#fab{position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;
-  background:var(--gold);color:#4a3410;border:none;font-size:30px;font-weight:800;line-height:1;
-  box-shadow:0 5px 18px rgba(0,0,0,.28);z-index:600;display:none;}
-body.show-fab #fab{display:block;}
 
 @media(max-width:760px){
   #main{padding:11px;}
@@ -190,26 +192,17 @@ body.show-fab #fab{display:block;}
   .person .pgrid{grid-template-columns:repeat(3,1fr);}
 }
 @media print{
-  #header,#tabs,#fab,.filters,.btn,#toast{display:none!important;}
+  #header,#tabs,.filters,.btn,#toast{display:none!important;}
   .sec{box-shadow:none;border:1px solid #ccc;}
 }
 </style>
 </head>
 <body>
 
-<!-- ============ 密碼閘門 ============ -->
-<div id="gate">
-  <div class="gi">🔒</div>
-  <h2>天晟急診科基金</h2>
-  <p>請輸入密碼</p>
-  <input type="password" id="gate-pwd" inputmode="numeric" autocomplete="off" placeholder="••••">
-  <button onclick="tryUnlock()">進　入</button>
-  <div class="err" id="gate-err"></div>
-</div>
-
 <div id="header">
   <h1>💰 天晟急診科基金</h1>
   <span id="cloud-status">☁️ 連線中…</span>
+  <a class="hbtn" href="操作說明.html" style="text-decoration:none;">說明</a>
   <button class="hbtn" onclick="manualSync()">同步</button>
 </div>
 
@@ -251,16 +244,15 @@ body.show-fab #fab{display:block;}
     </div>
     <div class="chips" style="margin-bottom:12px;">
       <button class="chip on" data-st="all" onclick="setStFilter('all')">全部</button>
-      <button class="chip" data-st="pending" onclick="setStFilter('pending')">未請款</button>
-      <button class="chip" data-st="claimed" onclick="setStFilter('claimed')">已請款待撥</button>
-      <button class="chip" data-st="paid" onclick="setStFilter('paid')">已付款</button>
+      <button class="chip" data-st="claimed" onclick="setStFilter('claimed')">請款中</button>
+      <button class="chip" data-st="paid" onclick="setStFilter('paid')">已到帳</button>
     </div>
     <div class="sec">
       <h3><span class="grow" id="exp-title">支出明細</span>
         <button class="btn sm gray" onclick="exportCSV()">匯出</button>
         <button class="btn sm" onclick="openExp()">＋ 新增</button></h3>
       <div class="tbl-wrap"><table id="exp-table"><thead><tr>
-        <th>日期</th><th>用途</th><th>分類</th><th class="num">金額</th><th>代墊者</th><th>狀態</th><th>填表</th><th></th>
+        <th>日期</th><th>用途</th><th>分類</th><th class="num">金額</th><th>代墊者</th><th>狀態</th><th>發票</th><th>簽收</th><th></th>
       </tr></thead><tbody id="exp-tbody"></tbody></table></div>
       <div id="exp-cards" style="padding:11px;"></div>
       <div id="exp-sum" style="padding:11px 14px;border-top:2px solid var(--line);font-weight:800;text-align:right;"></div>
@@ -352,7 +344,6 @@ body.show-fab #fab{display:block;}
           <input type="number" id="set-opening" inputmode="numeric" onchange="saveOpening(this.value)">
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn gray sm" onclick="changePwd()">🔑 修改密碼</button>
           <button class="btn gray sm" onclick="exportCSV(true)">📤 匯出全部 CSV</button>
           <button class="btn gray sm" onclick="backupJSON()">💾 備份 JSON</button>
           <button class="btn gray sm" onclick="document.getElementById('restore-file').click()">📥 還原 JSON</button>
@@ -369,8 +360,6 @@ body.show-fab #fab{display:block;}
 
 </div>
 
-<button id="fab" onclick="openExp()">＋</button>
-
 <!-- ============ 支出編輯 Modal ============ -->
 <div class="mask" id="exp-mask">
   <div class="modal">
@@ -383,13 +372,25 @@ body.show-fab #fab{display:block;}
       <div class="fld"><label>支出用途</label><input type="text" id="m-purpose" placeholder="例：科務會議餐費"></div>
       <div class="fld"><label>分類</label><select id="m-cat"></select></div>
       <div class="fld"><label>代墊者（誰先付的錢）</label><select id="m-payer"></select></div>
-      <div class="fld"><label>請款狀態</label>
+      <div class="fld"><label>狀態</label>
         <div class="seg" id="m-status">
-          <button data-v="pending" onclick="setMStatus('pending')">未請款</button>
-          <button data-v="claimed" onclick="setMStatus('claimed')">已請款待撥</button>
-          <button data-v="paid" onclick="setMStatus('paid')">已付款</button>
+          <button data-v="claimed" onclick="setMStatus('claimed')">請款中</button>
+          <button data-v="paid" onclick="setMStatus('paid')">已到帳</button>
         </div>
-        <div class="hint">「已付款」＝代墊者已實際拿到錢。</div>
+        <div class="hint">「已到帳」＝代墊者已實際拿到錢，切換時會請對方簽名。</div>
+      </div>
+      <div class="fld"><label>發票／收據照片</label>
+        <div class="photobox" id="m-photobox">
+          <div id="m-photo-view"></div>
+          <div class="ph-tip" id="m-photo-tip">拍照或從相簿選一張，系統會自動壓縮</div>
+          <div class="ph-btns">
+            <button type="button" class="btn sm" onclick="document.getElementById('m-cam').click()">📷 拍照</button>
+            <button type="button" class="btn sm gray" onclick="document.getElementById('m-file').click()">🖼️ 選照片</button>
+            <button type="button" class="btn sm red" id="m-photo-del" onclick="removePhoto()" style="display:none;">移除</button>
+          </div>
+          <input type="file" id="m-cam" accept="image/*" capture="environment" style="display:none" onchange="pickPhoto(this)">
+          <input type="file" id="m-file" accept="image/*" style="display:none" onchange="pickPhoto(this)">
+        </div>
       </div>
       <div class="fld"><label>備註</label><textarea id="m-note" placeholder="收據編號、參與人員…"></textarea></div>
     </div>
@@ -399,6 +400,34 @@ body.show-fab #fab{display:block;}
       <button class="btn green" onclick="saveExp()">儲存</button>
     </div>
   </div>
+</div>
+
+<!-- ============ 簽名 Modal ============ -->
+<div class="mask" id="sig-mask">
+  <div class="modal" style="max-width:520px;">
+    <h3>✍️ 簽名確認收款</h3>
+    <div class="mb">
+      <div id="sig-info" style="background:#f4f7fb;border-radius:9px;padding:11px 12px;margin-bottom:12px;font-size:13.5px;line-height:1.7;"></div>
+      <div id="sigpad-wrap">
+        <canvas id="sigpad"></canvas>
+        <div class="sig-line"></div>
+        <div class="sig-hint">請在此處簽名</div>
+      </div>
+      <div class="hint" style="margin-top:7px;">用手指或觸控筆直接在框內簽。簽名會留存做為已收款的紀錄。</div>
+    </div>
+    <div class="mf">
+      <button class="btn gray" style="flex:0 0 auto;" onclick="clearSig()">清除</button>
+      <button class="btn gray" onclick="closeSig()">取消</button>
+      <button class="btn green" onclick="confirmSig()">確認已收款</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 圖片檢視 ============ -->
+<div id="viewer" onclick="if(event.target.id==='viewer')closeViewer()">
+  <div class="vcap" id="viewer-cap"></div>
+  <img id="viewer-img" alt="">
+  <button class="vclose" onclick="closeViewer()">關閉</button>
 </div>
 
 <div id="toast"></div>
@@ -412,25 +441,24 @@ body.show-fab #fab{display:block;}
 // ============================================================
 const LS_KEY='tienSheng_erFund_v1';
 const CLOUD_URL_KEY='tienSheng_erFundCloudUrl';
-const AUTH_KEY='tienSheng_erFund_auth';
 const ME_KEY='tienSheng_erFund_me';
 const DEFAULT_CLOUD_URL='https://tenchener-488d2-default-rtdb.firebaseio.com/';
 const DB_REF='erFundData';
-const DEFAULT_PWD='0320';
+const FILES_REF='erFundFiles';   // 照片/簽名另存一支，帳目同步時不會被拖慢
 
-const ST_LABEL={pending:'未請款',claimed:'已請款待撥',paid:'已付款'};
+const ST_LABEL={claimed:'請款中',paid:'已到帳'};
 
 let state={
-  expenses:{},          // {id:{id,date,purpose,cat,amount,payer,status,note,by,ts,upd}}
+  expenses:{},          // {id:{id,date,purpose,cat,amount,payer,status,note,by,ts,upd,hasPhoto,sigId,signBy,signAt}}
   income:{},            // {'2026-07':{amount,note}}
   members:[],           // 姓名只存雲端，不寫進公開原始碼
   cats:['餐費','書籍期刊','會議研習','設備耗材','公關禮品','其他'],
-  opening:0,
-  pwd:DEFAULT_PWD
+  opening:0
 };
 let viewYM=ymOf(new Date());
 let stFilter='all';
-let editId=null, mStatus='pending';
+let editId=null, mStatus='claimed';
+let mPhoto=null, mPhotoChanged=false;   // 編輯中的照片 dataURL
 let _me=localStorage.getItem(ME_KEY)||'';
 
 // ============================================================
@@ -459,38 +487,6 @@ function allMonths(){
 }
 
 // ============================================================
-// 密碼閘門
-// ============================================================
-function tryUnlock(){
-  const v=document.getElementById('gate-pwd').value.trim();
-  if(v===String(state.pwd||DEFAULT_PWD)){
-    localStorage.setItem(AUTH_KEY,v);
-    document.getElementById('gate').style.display='none';
-  }else{
-    document.getElementById('gate-err').textContent='密碼錯誤';
-    document.getElementById('gate-pwd').value='';
-    setTimeout(()=>{document.getElementById('gate-err').textContent='';},2000);
-  }
-}
-function checkGate(){
-  if(localStorage.getItem(AUTH_KEY)===String(state.pwd||DEFAULT_PWD)){
-    document.getElementById('gate').style.display='none';
-  }
-}
-function changePwd(){
-  const cur=prompt('請輸入目前密碼');
-  if(cur===null) return;
-  if(cur.trim()!==String(state.pwd||DEFAULT_PWD)){ showToast('目前密碼錯誤','warn'); return; }
-  const nw=prompt('請輸入新密碼（所有裝置都會改變）');
-  if(nw===null||!nw.trim()) return;
-  state.pwd=nw.trim();
-  localStorage.setItem(AUTH_KEY,state.pwd);
-  save(); cloudSet('pwd',state.pwd);
-  showToast('密碼已更新','ok');
-}
-document.getElementById('gate-pwd').addEventListener('keydown',e=>{ if(e.key==='Enter') tryUnlock(); });
-
-// ============================================================
 // 儲存 / 讀取
 // ============================================================
 function save(){
@@ -510,10 +506,11 @@ function normalize(){
   state.members=state.members||[];
   state.cats=state.cats||[];
   state.opening=Number(state.opening)||0;
-  state.pwd=state.pwd||DEFAULT_PWD;
+  delete state.pwd;
   Object.values(state.expenses).forEach(e=>{
     e.amount=Number(e.amount)||0;
-    if(!e.status) e.status=e.claimed?'claimed':'pending';
+    // 舊版三段狀態（未請款/已請款待撥/已付款）併成兩段：請款中 / 已到帳
+    if(e.status!=='paid') e.status='claimed';
   });
 }
 
@@ -521,7 +518,7 @@ function normalize(){
 // 雲端同步（Firebase Realtime Database）
 // 寫入採「子節點寫入」，避免多人同時編輯互相覆蓋
 // ============================================================
-let _fbApp=null,_fbRef=null;
+let _fbApp=null,_fbRef=null,_filesRef=null;
 function getCloudUrl(){ return localStorage.getItem(CLOUD_URL_KEY)||DEFAULT_CLOUD_URL; }
 
 async function initCloud(url){
@@ -532,6 +529,7 @@ async function initCloud(url){
     if(_fbApp){ try{ await firebase.app('erFund').delete(); }catch(e){} _fbApp=null; }
     _fbApp=firebase.initializeApp({databaseURL:url.trim()},'erFund');
     _fbRef=firebase.database(_fbApp).ref(DB_REF);
+    _filesRef=firebase.database(_fbApp).ref(FILES_REF);
     _fbRef.on('value', snap=>{
       const data=snap.val();
       if(!data){ pushAll(); return; }   // 雲端還沒資料：把本機的推上去
@@ -541,7 +539,7 @@ async function initCloud(url){
     localStorage.setItem(CLOUD_URL_KEY,url.trim());
     updateCloudStatus(true);
   }catch(e){
-    _fbRef=null;_fbApp=null;
+    _fbRef=null;_fbApp=null;_filesRef=null;
     updateCloudStatus(false,'連線失敗');
     showToast('☁️ 連線失敗：'+e.message,'warn');
   }
@@ -552,7 +550,6 @@ function applyCloudData(d){
   if(d.members) state.members=d.members;
   if(d.cats) state.cats=d.cats;
   state.opening=Number(d.opening)||0;
-  state.pwd=d.pwd||DEFAULT_PWD;
   normalize(); save(); renderAll();
 }
 function cloudSet(path,val){
@@ -568,8 +565,22 @@ function pushAll(){
   if(!_fbRef) return;
   _fbRef.set({
     expenses:state.expenses,income:state.income,members:state.members,
-    cats:state.cats,opening:state.opening,pwd:state.pwd
+    cats:state.cats,opening:state.opening
   }).catch(e=>showToast('☁️ 上傳失敗：'+e.message,'warn'));
+}
+
+// ---- 照片 / 簽名（存在 erFundFiles，需要時才抓） ----
+function filePut(path,val){
+  if(!_filesRef) return Promise.reject(new Error('雲端未連線'));
+  return _filesRef.child(path).set(val);
+}
+function fileGet(path){
+  if(!_filesRef) return Promise.resolve(null);
+  return _filesRef.child(path).once('value').then(s=>s.val());
+}
+function fileDel(path){
+  if(!_filesRef) return Promise.resolve();
+  return _filesRef.child(path).remove().catch(()=>{});
 }
 function manualSync(){
   if(!_fbRef){ initCloud(getCloudUrl()); showToast('重新連線中…'); return; }
@@ -605,7 +616,7 @@ function sum(arr){ return arr.reduce((a,e)=>a+(Number(e.amount)||0),0); }
 function totalIncome(){ return Object.keys(state.income).reduce((a,k)=>a+incomeOf(k),0); }
 function totalExpense(){ return sum(expList()); }
 function balance(){ return (Number(state.opening)||0)+totalIncome()-totalExpense(); }
-// 尚未拿到錢的代墊款（未請款 + 已請款待撥）
+// 尚未拿到錢的代墊款（狀態＝請款中）
 function owedList(scope){
   let arr=expList().filter(e=>e.status!=='paid');
   if(scope==='month') arr=arr.filter(e=>ymOfDate(e.date)===viewYM);
@@ -635,19 +646,16 @@ function renderDash(){
       <div class="sub">${exs.length} 筆</div></div>
     <div class="card"><div class="lbl">本月收支</div><div class="val ${mBal<0?'neg':'pos'}">${nt(mBal)}</div>
       <div class="sub">${mBal<0?'本月超支':'本月結餘'}</div></div>
-    <div class="card alert"><div class="lbl">待付給代墊者</div><div class="val">${nt(owe)}</div>
-      <div class="sub">${owedList('all').length} 筆尚未拿到錢</div></div>`;
+    <div class="card alert"><div class="lbl">代墊者還沒拿到</div><div class="val">${nt(owe)}</div>
+      <div class="sub">${owedList('all').length} 筆請款中</div></div>`;
 
   // 尚未拿到款項
   const grp=byPayer(owedList('all'));
   const names=Object.keys(grp).sort((a,b)=>sum(grp[b])-sum(grp[a]));
   document.getElementById('dash-owed').innerHTML= names.length? `<div class="tbl-wrap"><table><thead><tr>
-      <th>代墊者</th><th class="num">未請款</th><th class="num">已請款待撥</th><th class="num">合計待付</th></tr></thead><tbody>`+
-    names.map(n=>{
-      const pend=sum(grp[n].filter(e=>e.status==='pending')), clm=sum(grp[n].filter(e=>e.status==='claimed'));
-      return `<tr><td><b>${esc(n)}</b></td><td class="num" style="color:#c0392b">${nt(pend)}</td>
-        <td class="num" style="color:#b8681a">${nt(clm)}</td><td class="num"><b>${nt(pend+clm)}</b></td></tr>`;
-    }).join('')+'</tbody></table></div>'
+      <th>代墊者</th><th class="num">筆數</th><th class="num">請款中金額</th></tr></thead><tbody>`+
+    names.map(n=>`<tr><td><b>${esc(n)}</b></td><td class="num">${grp[n].length}</td>
+        <td class="num"><b style="color:#b8681a">${nt(sum(grp[n]))}</b></td></tr>`).join('')+'</tbody></table></div>'
     : '<div class="empty">👍 目前沒有待付款項，所有代墊都已結清</div>';
 
   // 本月支出
@@ -693,28 +701,43 @@ function renderExp(){
     <td class="num"><b>${nt(e.amount)}</b></td>
     <td>${esc(e.payer||'-')}</td>
     <td><button class="pill ${e.status}" onclick="cycleStatus('${e.id}')" title="點擊切換狀態">${ST_LABEL[e.status]}</button></td>
-    <td style="font-size:12px;color:var(--muted)">${esc(e.by||'')}</td>
+    <td>${e.hasPhoto?`<button class="icn" onclick="viewPhoto('${e.id}')" title="檢視發票">🧾</button>`:'<span style="color:#ccd3dc">—</span>'}</td>
+    <td>${e.sigId?`<button class="icn" onclick="viewSig('${e.id}')" title="檢視簽名">✍️</button>`:'<span style="color:#ccd3dc">—</span>'}</td>
     <td><button class="btn sm gray" onclick="openExp('${e.id}')">編輯</button></td>
-  </tr>`).join('') : '<tr><td colspan="8"><div class="empty">沒有符合條件的資料</div></td></tr>';
+  </tr>`).join('') : '<tr><td colspan="9"><div class="empty">沒有符合條件的資料</div></td></tr>';
 
   document.getElementById('exp-cards').innerHTML= arr.length? arr.map(e=>`<div class="ecard">
     <div class="r1"><div class="p">${esc(e.purpose)}</div><div class="a">${nt(e.amount)}</div></div>
     <div class="r2"><div class="meta">${esc(e.date||'')}　${esc(e.cat||'')}　代墊：<b>${esc(e.payer||'-')}</b></div>
       <button class="pill ${e.status}" onclick="cycleStatus('${e.id}')">${ST_LABEL[e.status]}</button></div>
     ${e.note?`<div class="meta" style="margin-top:5px">📝 ${esc(e.note)}</div>`:''}
-    <div class="acts"><button class="btn sm gray" onclick="openExp('${e.id}')">編輯</button></div>
+    ${e.signBy?`<div class="meta" style="margin-top:5px">✍️ ${esc(e.signBy)} 已簽收${e.signAt?'（'+new Date(e.signAt).toLocaleDateString('zh-TW')+'）':''}</div>`:''}
+    <div class="acts"><button class="btn sm gray" onclick="openExp('${e.id}')">編輯</button>
+      ${e.hasPhoto?`<button class="btn sm gray" onclick="viewPhoto('${e.id}')">🧾 發票</button>`:''}
+      ${e.sigId?`<button class="btn sm gray" onclick="viewSig('${e.id}')">✍️ 簽名</button>`:''}</div>
   </div>`).join('') : '<div class="empty">沒有符合條件的資料</div>';
 
   const tot=sum(arr), unpaid=sum(arr.filter(e=>e.status!=='paid'));
   document.getElementById('exp-sum').innerHTML=`合計 <span style="color:var(--navy);font-size:17px">${nt(tot)}</span>
     <span style="color:var(--muted);font-weight:600;font-size:12.5px">（其中待付 ${nt(unpaid)}）</span>`;
 }
+// 一張簽名可能涵蓋多筆；只有沒人再引用時才真的刪掉圖檔
+function dropSig(e){
+  if(!e||!e.sigId) return;
+  const others=expList().filter(x=>x.id!==e.id && x.sigId===e.sigId).length;
+  if(!others) fileDel('sig/'+e.sigId);
+}
 function cycleStatus(id){
   const e=state.expenses[id]; if(!e) return;
-  e.status = e.status==='pending'?'claimed' : e.status==='claimed'?'paid' : 'pending';
-  e.upd=Date.now();
-  save(); cloudSet('expenses/'+id,e); renderAll();
-  showToast(esc(e.purpose)+' → '+ST_LABEL[e.status],'ok');
+  if(e.status==='paid'){                       // 已到帳 → 退回請款中，取消這筆的簽收
+    if(!confirm(`把「${e.purpose}」退回「請款中」？\n這筆的簽收紀錄會取消。`)) return;
+    dropSig(e);
+    e.status='claimed'; delete e.sigId; delete e.signBy; delete e.signAt;
+    e.upd=Date.now(); save(); cloudSet('expenses/'+id,e); renderAll();
+    showToast('已退回請款中');
+  }else{
+    openSig([e]);                              // 請款中 → 已到帳，先簽名
+  }
 }
 
 // ============================================================
@@ -723,12 +746,11 @@ function cycleStatus(id){
 function renderSettle(){
   const scope=document.getElementById('s-scope').value;
   let arr=expList(); if(scope==='month') arr=arr.filter(e=>ymOfDate(e.date)===viewYM);
-  const pend=arr.filter(e=>e.status==='pending'), clm=arr.filter(e=>e.status==='claimed'), paid=arr.filter(e=>e.status==='paid');
+  const clm=arr.filter(e=>e.status!=='paid'), paid=arr.filter(e=>e.status==='paid');
   document.getElementById('settle-cards').innerHTML=`
-    <div class="card"><div class="lbl">未請款</div><div class="val" style="color:#c0392b">${nt(sum(pend))}</div><div class="sub">${pend.length} 筆</div></div>
-    <div class="card"><div class="lbl">已請款待撥</div><div class="val" style="color:#b8681a">${nt(sum(clm))}</div><div class="sub">${clm.length} 筆</div></div>
-    <div class="card"><div class="lbl">已付款</div><div class="val" style="color:#227048">${nt(sum(paid))}</div><div class="sub">${paid.length} 筆</div></div>
-    <div class="card alert"><div class="lbl">合計待付</div><div class="val">${nt(sum(pend)+sum(clm))}</div><div class="sub">尚未回到代墊者手上</div></div>`;
+    <div class="card alert"><div class="lbl">請款中（還沒拿到）</div><div class="val">${nt(sum(clm))}</div><div class="sub">${clm.length} 筆</div></div>
+    <div class="card"><div class="lbl">已到帳</div><div class="val" style="color:#227048">${nt(sum(paid))}</div><div class="sub">${paid.length} 筆</div></div>
+    <div class="card"><div class="lbl">合計代墊</div><div class="val">${nt(sum(arr))}</div><div class="sub">${arr.length} 筆</div></div>`;
 
   const grp=byPayer(arr);
   const names=Object.keys(grp).sort((a,b)=>{
@@ -737,44 +759,33 @@ function renderSettle(){
   });
   document.getElementById('settle-list').innerHTML= names.length? names.map(n=>{
     const g=grp[n];
-    const p=sum(g.filter(e=>e.status==='pending')), c=sum(g.filter(e=>e.status==='claimed')), d=sum(g.filter(e=>e.status==='paid'));
+    const c=sum(g.filter(e=>e.status!=='paid')), d=sum(g.filter(e=>e.status==='paid'));
     const open=g.filter(e=>e.status!=='paid');
     return `<div class="person">
       <div class="ph"><div class="pname">${esc(n)}</div>
-        ${p+c>0?`<span class="pill pending">待付 ${nt(p+c)}</span>`:'<span class="pill paid">已結清</span>'}</div>
-      <div class="pgrid">
-        <div class="pg"><div class="l">未請款</div><div class="v" style="color:#c0392b">${nt(p)}</div></div>
-        <div class="pg"><div class="l">已請款待撥</div><div class="v" style="color:#b8681a">${nt(c)}</div></div>
-        <div class="pg"><div class="l">已付款</div><div class="v" style="color:#227048">${nt(d)}</div></div>
+        ${c>0?`<span class="pill claimed">請款中 ${nt(c)}</span>`:'<span class="pill paid">已結清</span>'}</div>
+      <div class="pgrid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="pg"><div class="l">請款中</div><div class="v" style="color:#b8681a">${nt(c)}</div></div>
+        <div class="pg"><div class="l">已到帳</div><div class="v" style="color:#227048">${nt(d)}</div></div>
+        <div class="pg"><div class="l">累計代墊</div><div class="v">${nt(c+d)}</div></div>
       </div>
       ${open.length?`<div style="margin-top:9px;font-size:12.5px;color:var(--muted)">
-        ${open.map(e=>`<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px dashed #eef1f6">
-          <span style="flex:1">${esc(e.date||'')}　${esc(e.purpose)}</span>
+        ${open.map(e=>`<div style="display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px dashed #eef1f6">
+          <span style="flex:1">${esc(e.date||'')}　${esc(e.purpose)}${e.hasPhoto?' 🧾':''}</span>
           <b style="font-variant-numeric:tabular-nums">${nt(e.amount)}</b>
           <button class="pill ${e.status}" onclick="cycleStatus('${e.id}')">${ST_LABEL[e.status]}</button></div>`).join('')}
       </div>`:''}
       <div class="pacts">
-        ${p>0?`<button class="btn sm gold" onclick="bulkStatus('${esc(n)}','pending','claimed')">未請款 → 已請款</button>`:''}
-        ${(p+c)>0?`<button class="btn sm green" onclick="bulkPaid('${esc(n)}')">✔ 全部標記已付款</button>`:''}
+        ${c>0?`<button class="btn sm green" onclick="bulkPaid('${esc(n)}')">✍️ 簽名確認已到帳（${open.length} 筆）</button>`:''}
       </div>
     </div>`;
   }).join('') : '<div class="empty">尚無資料</div>';
-}
-function bulkStatus(name,from,to){
-  const scope=document.getElementById('s-scope').value;
-  const arr=expList().filter(e=>(e.payer||'（未填）')===name && e.status===from && (scope!=='month'||ymOfDate(e.date)===viewYM));
-  if(!arr.length) return;
-  if(!confirm(`將 ${name} 的 ${arr.length} 筆（${nt(sum(arr))}）標記為「${ST_LABEL[to]}」？`)) return;
-  arr.forEach(e=>{ e.status=to; e.upd=Date.now(); cloudSet('expenses/'+e.id,e); });
-  save(); renderAll(); showToast('已更新 '+arr.length+' 筆','ok');
 }
 function bulkPaid(name){
   const scope=document.getElementById('s-scope').value;
   const arr=expList().filter(e=>(e.payer||'（未填）')===name && e.status!=='paid' && (scope!=='month'||ymOfDate(e.date)===viewYM));
   if(!arr.length) return;
-  if(!confirm(`確認 ${name} 已實際拿到 ${nt(sum(arr))}（共 ${arr.length} 筆）？`)) return;
-  arr.forEach(e=>{ e.status='paid'; e.upd=Date.now(); cloudSet('expenses/'+e.id,e); });
-  save(); renderAll(); showToast(name+' 已結清','ok');
+  openSig(arr);
 }
 
 // ============================================================
@@ -898,7 +909,11 @@ function openExp(id){
   editId=id||null;
   const e=id?state.expenses[id]:null;
   document.getElementById('exp-mtitle').textContent=e?'編輯支出':'新增支出';
-  document.getElementById('m-date').value=e?e.date:(ymOf(new Date())===viewYM?todayStr():viewYM+'-01');
+  const dEl=document.getElementById('m-date');
+  dEl.max=todayStr();                                  // 不可選未來日期
+  let def = e ? e.date : (ymOf(new Date())===viewYM ? todayStr() : viewYM+'-01');
+  if(def>todayStr()) def=todayStr();
+  dEl.value=def;
   document.getElementById('m-amt').value=e?e.amount:'';
   document.getElementById('m-purpose').value=e?e.purpose:'';
   document.getElementById('m-note').value=e?(e.note||''):'';
@@ -909,12 +924,19 @@ function openExp(id){
   const extra=e&&e.payer&&!state.members.includes(e.payer)?[e.payer]:[];
   ps.innerHTML='<option value="">（未填）</option>'+state.members.concat(extra).map(m=>`<option>${esc(m)}</option>`).join('');
   ps.value=e?(e.payer||''):(_me||'');
-  setMStatus(e?e.status:'pending');
+  setMStatus(e?e.status:'claimed');
   document.getElementById('m-del').style.display=e?'block':'none';
+  // 照片
+  mPhoto=null; mPhotoChanged=false; showPhoto(null);
+  if(e&&e.hasPhoto){
+    document.getElementById('m-photo-tip').textContent='載入照片中…';
+    fileGet('photo/'+e.id).then(d=>{ if(editId===e.id){ mPhoto=d; showPhoto(d); } })
+      .catch(()=>{ document.getElementById('m-photo-tip').textContent='照片載入失敗（需連線）'; });
+  }
   document.getElementById('exp-mask').classList.add('on');
   setTimeout(()=>document.getElementById('m-purpose').focus(),80);
 }
-function closeExp(){ document.getElementById('exp-mask').classList.remove('on'); editId=null; }
+function closeExp(){ document.getElementById('exp-mask').classList.remove('on'); editId=null; mPhoto=null; mPhotoChanged=false; }
 function setMStatus(v){
   mStatus=v;
   document.querySelectorAll('#m-status button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
@@ -924,10 +946,12 @@ function saveExp(){
   const amount=Number(document.getElementById('m-amt').value)||0;
   const purpose=document.getElementById('m-purpose').value.trim();
   if(!date){ showToast('請選擇日期','warn'); return; }
+  if(date>todayStr()){ showToast('支出日期不能填未來日期','warn'); return; }
   if(!purpose){ showToast('請填寫支出用途','warn'); return; }
   if(amount<=0){ showToast('請填寫金額','warn'); return; }
   const id=editId||uid();
   const old=state.expenses[id]||{};
+  const wasEdit=!!editId;
   const e={
     id, date, amount, purpose,
     cat:document.getElementById('m-cat').value,
@@ -938,20 +962,170 @@ function saveExp(){
     ts: old.ts || Date.now(),
     upd: Date.now()
   };
-  state.expenses[id]=e;
-  save(); cloudSet('expenses/'+id,e);
-  closeExp(); viewYM=ymOfDate(date); renderAll();
-  showToast(editId?'已更新':'已新增 '+nt(amount),'ok');
+  if(old.sigId){ e.sigId=old.sigId; e.signBy=old.signBy; e.signAt=old.signAt; }
+  e.hasPhoto = mPhotoChanged ? !!mPhoto : !!old.hasPhoto;
+
+  const finish=()=>{
+    state.expenses[id]=e;
+    save(); cloudSet('expenses/'+id,e);
+    closeExp(); viewYM=ymOfDate(date); renderAll();
+    showToast(wasEdit?'已更新':'已新增 '+nt(amount),'ok');
+  };
+  if(mPhotoChanged){
+    if(mPhoto){
+      showToast('上傳照片中…');
+      filePut('photo/'+id,mPhoto).then(finish)
+        .catch(err=>{ e.hasPhoto=false; showToast('照片上傳失敗：'+err.message,'warn'); finish(); });
+      return;
+    }
+    fileDel('photo/'+id);
+  }
+  finish();
 }
 function delExp(){
   if(!editId) return;
   const e=state.expenses[editId];
   if(!confirm(`刪除「${e.purpose}」${nt(e.amount)}？此動作無法復原。`)) return;
   const id=editId;
+  if(e.hasPhoto) fileDel('photo/'+id);
+  dropSig(e);
   delete state.expenses[id];
   save(); cloudRemove('expenses/'+id);
   closeExp(); renderAll(); showToast('已刪除');
 }
+
+// ============================================================
+// 發票照片：拍照 / 選檔 → 壓縮 → 存雲端
+// ============================================================
+function showPhoto(dataUrl){
+  const v=document.getElementById('m-photo-view'), tip=document.getElementById('m-photo-tip');
+  const del=document.getElementById('m-photo-del');
+  if(dataUrl){
+    v.innerHTML=`<img src="${dataUrl}" alt="發票" onclick="openViewer(this.src,'發票／收據')">`;
+    tip.textContent='點照片可放大；要換一張直接再拍或再選一次';
+    del.style.display='';
+  }else{
+    v.innerHTML='';
+    tip.textContent='拍照或從相簿選一張，系統會自動壓縮';
+    del.style.display='none';
+  }
+}
+function removePhoto(){
+  mPhoto=null; mPhotoChanged=true; showPhoto(null);
+  document.getElementById('m-cam').value=''; document.getElementById('m-file').value='';
+}
+function pickPhoto(inp){
+  const f=inp.files&&inp.files[0]; inp.value='';
+  if(!f) return;
+  if(!/^image\//.test(f.type)){ showToast('請選擇圖片檔','warn'); return; }
+  document.getElementById('m-photo-tip').textContent='處理照片中…';
+  compressImage(f).then(d=>{
+    mPhoto=d; mPhotoChanged=true; showPhoto(d);
+    showToast('照片已就緒（'+Math.round(d.length/1400)+' KB）','ok');
+  }).catch(err=>{
+    document.getElementById('m-photo-tip').textContent='照片讀取失敗，請換一張';
+    showToast('照片讀取失敗','warn');
+  });
+}
+// 壓到長邊 1400px 以內、並讓 base64 控制在約 400KB 以下
+async function compressImage(file){
+  let bmp;
+  try{ bmp=await createImageBitmap(file,{imageOrientation:'from-image'}); }
+  catch(e){ bmp=await new Promise((res,rej)=>{
+      const im=new Image(), u=URL.createObjectURL(file);
+      im.onload=()=>{ URL.revokeObjectURL(u); res(im); }; im.onerror=()=>{ URL.revokeObjectURL(u); rej(new Error('decode')); };
+      im.src=u; }); }
+  let w=bmp.width, h=bmp.height;
+  const MAX=1400, sc=Math.min(1,MAX/Math.max(w,h));
+  w=Math.round(w*sc); h=Math.round(h*sc);
+  const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+  const cx=cv.getContext('2d'); cx.fillStyle='#fff'; cx.fillRect(0,0,w,h); cx.drawImage(bmp,0,0,w,h);
+  let q=0.72, out=cv.toDataURL('image/jpeg',q);
+  while(out.length>560000 && q>0.32){ q-=0.12; out=cv.toDataURL('image/jpeg',q); }
+  return out;
+}
+function viewPhoto(id){
+  const e=state.expenses[id]; if(!e) return;
+  showToast('載入照片中…');
+  fileGet('photo/'+id).then(d=>{
+    if(!d){ showToast('找不到照片','warn'); return; }
+    openViewer(d,`${e.date}　${e.purpose}　${nt(e.amount)}`);
+  }).catch(()=>showToast('照片載入失敗（需連線）','warn'));
+}
+function viewSig(id){
+  const e=state.expenses[id]; if(!e||!e.sigId) return;
+  showToast('載入簽名中…');
+  fileGet('sig/'+e.sigId).then(s=>{
+    if(!s||!s.img){ showToast('找不到簽名','warn'); return; }
+    openViewer(s.img,`${esc(s.by||'')} 簽收 ${nt(s.amount||e.amount)}　${s.at?new Date(s.at).toLocaleString('zh-TW'):''}`);
+  }).catch(()=>showToast('簽名載入失敗（需連線）','warn'));
+}
+function openViewer(src,cap){
+  document.getElementById('viewer-img').src=src;
+  document.getElementById('viewer-cap').textContent=cap||'';
+  document.getElementById('viewer').classList.add('on');
+}
+function closeViewer(){
+  document.getElementById('viewer').classList.remove('on');
+  document.getElementById('viewer-img').src='';
+}
+
+// ============================================================
+// 簽名板：確認代墊者已實際收到錢
+// ============================================================
+let _sigItems=[], _sigCtx=null, _sigDrawn=false;
+function openSig(items){
+  _sigItems=items.slice();
+  const name=_sigItems[0].payer||'（未填代墊者）';
+  const tot=sum(_sigItems);
+  document.getElementById('sig-info').innerHTML=
+    `<b style="font-size:15px">${esc(name)}</b> 確認已收到 <b style="color:#227048;font-size:16px">${nt(tot)}</b>`+
+    `<div style="color:var(--muted);font-size:12.5px;margin-top:4px">`+
+    _sigItems.map(e=>`${esc(e.date||'')}　${esc(e.purpose)}　${nt(e.amount)}`).join('<br>')+`</div>`;
+  document.getElementById('sig-mask').classList.add('on');
+  setTimeout(initSigPad,60);
+}
+function initSigPad(){
+  const cv=document.getElementById('sigpad'), wrap=document.getElementById('sigpad-wrap');
+  const r=cv.getBoundingClientRect();
+  cv.width=Math.round(r.width*2); cv.height=Math.round(r.height*2);
+  _sigCtx=cv.getContext('2d');
+  _sigCtx.scale(2,2);
+  _sigCtx.lineWidth=2.4; _sigCtx.lineCap='round'; _sigCtx.lineJoin='round'; _sigCtx.strokeStyle='#12233a';
+  _sigDrawn=false; wrap.classList.remove('drawn');
+  let drawing=false;
+  const pos=ev=>{ const b=cv.getBoundingClientRect(); return [ev.clientX-b.left, ev.clientY-b.top]; };
+  cv.onpointerdown=ev=>{ ev.preventDefault(); drawing=true; try{ cv.setPointerCapture(ev.pointerId); }catch(_){}
+    const [x,y]=pos(ev); _sigCtx.beginPath(); _sigCtx.moveTo(x,y);
+    _sigDrawn=true; wrap.classList.add('drawn'); };
+  cv.onpointermove=ev=>{ if(!drawing) return; ev.preventDefault(); const [x,y]=pos(ev); _sigCtx.lineTo(x,y); _sigCtx.stroke(); };
+  cv.onpointerup=cv.onpointercancel=ev=>{ drawing=false; };
+}
+function clearSig(){
+  const cv=document.getElementById('sigpad');
+  if(_sigCtx) _sigCtx.clearRect(0,0,cv.width,cv.height);
+  _sigDrawn=false; document.getElementById('sigpad-wrap').classList.remove('drawn');
+}
+function closeSig(){ document.getElementById('sig-mask').classList.remove('on'); _sigItems=[]; }
+function confirmSig(){
+  if(!_sigDrawn){ showToast('請先簽名','warn'); return; }
+  if(!_filesRef){ showToast('雲端未連線，簽名無法留存','warn'); return; }
+  const img=document.getElementById('sigpad').toDataURL('image/png');
+  const sigId=uid(), at=Date.now();
+  const name=_sigItems[0].payer||'', tot=sum(_sigItems);
+  const items=_sigItems.slice();
+  showToast('儲存簽名中…');
+  filePut('sig/'+sigId,{img,by:name,at,amount:tot,ids:items.map(e=>e.id)}).then(()=>{
+    items.forEach(e=>{
+      e.status='paid'; e.sigId=sigId; e.signBy=name; e.signAt=at; e.upd=Date.now();
+      cloudSet('expenses/'+e.id,e);
+    });
+    save(); closeSig(); renderAll();
+    showToast('✔ '+(name||'代墊者')+' 已簽收 '+nt(tot),'ok');
+  }).catch(err=>showToast('簽名儲存失敗：'+err.message,'warn'));
+}
+document.getElementById('sig-mask').addEventListener('click',ev=>{ if(ev.target.id==='sig-mask') closeSig(); });
+window.addEventListener('resize',()=>{ if(document.getElementById('sig-mask').classList.contains('on')&&!_sigDrawn) initSigPad(); });
 document.getElementById('exp-mask').addEventListener('click',ev=>{ if(ev.target.id==='exp-mask') closeExp(); });
 
 // ============================================================
@@ -960,10 +1134,11 @@ document.getElementById('exp-mask').addEventListener('click',ev=>{ if(ev.target.
 function exportCSV(all){
   const arr=all?expList().slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')):filteredExp();
   if(!arr.length){ showToast('沒有可匯出的資料','warn'); return; }
-  const head=['日期','用途','分類','金額','代墊者','請款狀態','備註','填表人'];
-  const rows=arr.map(e=>[e.date||'',e.purpose||'',e.cat||'',e.amount||0,e.payer||'',ST_LABEL[e.status]||'',e.note||'',e.by||'']);
+  const head=['日期','用途','分類','金額','代墊者','狀態','發票照片','簽收人','簽收時間','備註','填表人'];
+  const rows=arr.map(e=>[e.date||'',e.purpose||'',e.cat||'',e.amount||0,e.payer||'',ST_LABEL[e.status]||'',
+    e.hasPhoto?'有':'', e.signBy||'', e.signAt?new Date(e.signAt).toLocaleString('zh-TW'):'', e.note||'', e.by||'']);
   rows.push([]);
-  rows.push(['合計','','',sum(arr),'','','','']);
+  rows.push(['合計','','',sum(arr),'','','','','','','']);
   const csv=[head].concat(rows).map(r=>r.map(c=>{
     const s=String(c==null?'':c);
     return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
@@ -1017,7 +1192,6 @@ function switchTab(t){
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
   document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
   document.getElementById('pane-'+t).classList.add('active');
-  document.body.classList.toggle('show-fab',t==='dash'||t==='exp');
   window.scrollTo(0,0);
 }
 
@@ -1046,7 +1220,6 @@ function renderAll(){
 // ============================================================
 load();
 normalize();
-checkGate();
 renderAll();
 switchTab('dash');
 initCloud(getCloudUrl());
