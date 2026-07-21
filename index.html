@@ -153,6 +153,10 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
 .mtag{background:#eef1f6;border-radius:8px;padding:7px 9px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:7px;}
 .mtag .x{color:var(--bad);font-weight:900;cursor:pointer;font-size:15px;line-height:1;}
 
+/* 只在電腦版顯示（列印/PDF） */
+.deskonly{display:inline-block;}
+@media(max-width:760px){.deskonly{display:none!important;}}
+
 /* ---------- 發票照片 ---------- */
 .photobox{border:1.5px dashed var(--line);border-radius:10px;padding:14px;text-align:center;background:#fafbfd;}
 .photobox .ph-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;}
@@ -239,7 +243,6 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
     <div class="filters">
       <select id="f-month" onchange="renderExp()"></select>
       <select id="f-payer" onchange="renderExp()"></select>
-      <select id="f-cat" onchange="renderExp()"></select>
       <input type="search" id="f-kw" placeholder="搜尋用途/備註" oninput="renderExp()" style="flex:1;min-width:120px;">
     </div>
     <div class="chips" style="margin-bottom:12px;">
@@ -249,10 +252,11 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
     </div>
     <div class="sec">
       <h3><span class="grow" id="exp-title">支出明細</span>
-        <button class="btn sm gray" onclick="exportCSV()">匯出</button>
+        <button class="btn sm gray deskonly" onclick="exportPDF()">🖨️ 匯出 PDF</button>
+        <button class="btn sm gray" onclick="exportCSV()">匯出 CSV</button>
         <button class="btn sm" onclick="openExp()">＋ 新增</button></h3>
       <div class="tbl-wrap"><table id="exp-table"><thead><tr>
-        <th>日期</th><th>用途</th><th>分類</th><th class="num">金額</th><th>代墊者</th><th>狀態</th><th>發票</th><th>簽收</th><th></th>
+        <th>日期</th><th>用途</th><th class="num">金額</th><th>代墊者</th><th>狀態</th><th>發票</th><th>簽收</th><th></th>
       </tr></thead><tbody id="exp-tbody"></tbody></table></div>
       <div id="exp-cards" style="padding:11px;"></div>
       <div id="exp-sum" style="padding:11px 14px;border-top:2px solid var(--line);font-weight:800;text-align:right;"></div>
@@ -280,10 +284,6 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
     <div class="sec">
       <h3>📈 每月收支</h3>
       <div class="sec-body" id="stats-months"></div>
-    </div>
-    <div class="sec">
-      <h3>🥧 分類佔比（全期間）</h3>
-      <div class="sec-body" id="stats-cats"></div>
     </div>
     <div class="sec">
       <h3>👥 各人代墊統計（全期間）</h3>
@@ -327,16 +327,6 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
       </div>
     </div>
     <div class="sec">
-      <h3>🏷️ 支出分類</h3>
-      <div class="sec-body">
-        <div class="filters" style="margin-bottom:10px;">
-          <input type="text" id="new-cat" placeholder="輸入分類" style="flex:1;">
-          <button class="btn sm" onclick="addCat()">新增</button>
-        </div>
-        <div class="mlist" id="cat-list"></div>
-      </div>
-    </div>
-    <div class="sec">
       <h3>⚙️ 其他</h3>
       <div class="sec-body">
         <div class="fld">
@@ -344,6 +334,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
           <input type="number" id="set-opening" inputmode="numeric" onchange="saveOpening(this.value)">
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn gray sm deskonly" onclick="exportPDF(true)">🖨️ 匯出全部 PDF</button>
           <button class="btn gray sm" onclick="exportCSV(true)">📤 匯出全部 CSV</button>
           <button class="btn gray sm" onclick="backupJSON()">💾 備份 JSON</button>
           <button class="btn gray sm" onclick="document.getElementById('restore-file').click()">📥 還原 JSON</button>
@@ -370,14 +361,10 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
         <div class="fld"><label>金額 (NT$)</label><input type="number" id="m-amt" inputmode="numeric" placeholder="0"></div>
       </div>
       <div class="fld"><label>支出用途</label><input type="text" id="m-purpose" placeholder="例：科務會議餐費"></div>
-      <div class="fld"><label>分類</label><select id="m-cat"></select></div>
       <div class="fld"><label>代墊者（誰先付的錢）</label><select id="m-payer"></select></div>
-      <div class="fld"><label>狀態</label>
-        <div class="seg" id="m-status">
-          <button data-v="claimed" onclick="setMStatus('claimed')">請款中</button>
-          <button data-v="paid" onclick="setMStatus('paid')">已到帳</button>
-        </div>
-        <div class="hint">「已到帳」＝代墊者已實際拿到錢，切換時會請對方簽名。</div>
+      <div class="fld" id="m-status-row" style="display:none;"><label>目前狀態</label>
+        <div id="m-status-view" style="padding:9px 11px;background:#f7f9fc;border-radius:8px;"></div>
+        <div class="hint">狀態只能在明細或結算頁點標籤切換，切成「已到帳」時一定要代墊者簽名。</div>
       </div>
       <div class="fld"><label>發票／收據照片</label>
         <div class="photobox" id="m-photobox">
@@ -423,6 +410,29 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
   </div>
 </div>
 
+<!-- ============ 取消簽收確認 ============ -->
+<div class="mask" id="unsign-mask">
+  <div class="modal" style="max-width:440px;">
+    <h3 style="background:var(--bad);">⚠️ 取消簽收紀錄</h3>
+    <div class="mb">
+      <div id="unsign-info" style="background:#fdf2f1;border-left:4px solid var(--bad);border-radius:0 8px 8px 0;
+        padding:11px 13px;margin-bottom:13px;font-size:13.5px;line-height:1.75;"></div>
+      <p style="font-size:13.5px;color:#48566a;line-height:1.7;">
+        這筆會退回<span class="pill claimed">請款中</span>，代表這筆錢<b>其實還沒回到代墊者手上</b>。
+        原本的簽名會被刪除，<b>無法復原</b>。</p>
+      <label style="display:flex;gap:9px;align-items:flex-start;margin-top:13px;padding:11px;
+        background:#f7f9fc;border-radius:8px;cursor:pointer;font-size:13.5px;font-weight:700;">
+        <input type="checkbox" id="unsign-ck" style="width:19px;height:19px;flex:none;margin-top:1px;" onchange="updUnsignBtn()">
+        <span id="unsign-ck-label"></span>
+      </label>
+    </div>
+    <div class="mf">
+      <button class="btn gray" onclick="closeUnsign()">取消</button>
+      <button class="btn red" id="unsign-go" disabled onclick="doUnsign()">確認退回請款中</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ 圖片檢視 ============ -->
 <div id="viewer" onclick="if(event.target.id==='viewer')closeViewer()">
   <div class="vcap" id="viewer-cap"></div>
@@ -452,12 +462,11 @@ let state={
   expenses:{},          // {id:{id,date,purpose,cat,amount,payer,status,note,by,ts,upd,hasPhoto,sigId,signBy,signAt}}
   income:{},            // {'2026-07':{amount,note}}
   members:[],           // 姓名只存雲端，不寫進公開原始碼
-  cats:['餐費','書籍期刊','會議研習','設備耗材','公關禮品','其他'],
   opening:0
 };
 let viewYM=ymOf(new Date());
 let stFilter='all';
-let editId=null, mStatus='claimed';
+let editId=null;
 let mPhoto=null, mPhotoChanged=false;   // 編輯中的照片 dataURL
 let _me=localStorage.getItem(ME_KEY)||'';
 
@@ -504,9 +513,8 @@ function normalize(){
   }
   state.income=state.income||{};
   state.members=state.members||[];
-  state.cats=state.cats||[];
   state.opening=Number(state.opening)||0;
-  delete state.pwd;
+  delete state.pwd; delete state.cats;
   Object.values(state.expenses).forEach(e=>{
     e.amount=Number(e.amount)||0;
     // 舊版三段狀態（未請款/已請款待撥/已付款）併成兩段：請款中 / 已到帳
@@ -548,7 +556,6 @@ function applyCloudData(d){
   state.expenses=d.expenses||{};
   state.income=d.income||{};
   if(d.members) state.members=d.members;
-  if(d.cats) state.cats=d.cats;
   state.opening=Number(d.opening)||0;
   normalize(); save(); renderAll();
 }
@@ -564,8 +571,7 @@ function cloudRemove(path){
 function pushAll(){
   if(!_fbRef) return;
   _fbRef.set({
-    expenses:state.expenses,income:state.income,members:state.members,
-    cats:state.cats,opening:state.opening
+    expenses:state.expenses,income:state.income,members:state.members,opening:state.opening
   }).catch(e=>showToast('☁️ 上傳失敗：'+e.message,'warn'));
 }
 
@@ -680,12 +686,10 @@ function setStFilter(v){
 function filteredExp(){
   const fm=document.getElementById('f-month').value;
   const fp=document.getElementById('f-payer').value;
-  const fc=document.getElementById('f-cat').value;
   const kw=(document.getElementById('f-kw').value||'').trim().toLowerCase();
   return expList().filter(e=>{
     if(fm!=='all' && ymOfDate(e.date)!==fm) return false;
     if(fp!=='all' && (e.payer||'')!==fp) return false;
-    if(fc!=='all' && (e.cat||'')!==fc) return false;
     if(stFilter!=='all' && e.status!==stFilter) return false;
     if(kw && !((e.purpose||'')+' '+(e.note||'')).toLowerCase().includes(kw)) return false;
     return true;
@@ -697,18 +701,17 @@ function renderExp(){
   document.getElementById('exp-tbody').innerHTML= arr.length? arr.map(e=>`<tr>
     <td style="white-space:nowrap">${esc(e.date||'')}</td>
     <td>${esc(e.purpose)}${e.note?`<div style="font-size:11.5px;color:var(--muted)">${esc(e.note)}</div>`:''}</td>
-    <td>${esc(e.cat||'-')}</td>
     <td class="num"><b>${nt(e.amount)}</b></td>
     <td>${esc(e.payer||'-')}</td>
     <td><button class="pill ${e.status}" onclick="cycleStatus('${e.id}')" title="點擊切換狀態">${ST_LABEL[e.status]}</button></td>
     <td>${e.hasPhoto?`<button class="icn" onclick="viewPhoto('${e.id}')" title="檢視發票">🧾</button>`:'<span style="color:#ccd3dc">—</span>'}</td>
     <td>${e.sigId?`<button class="icn" onclick="viewSig('${e.id}')" title="檢視簽名">✍️</button>`:'<span style="color:#ccd3dc">—</span>'}</td>
     <td><button class="btn sm gray" onclick="openExp('${e.id}')">編輯</button></td>
-  </tr>`).join('') : '<tr><td colspan="9"><div class="empty">沒有符合條件的資料</div></td></tr>';
+  </tr>`).join('') : '<tr><td colspan="8"><div class="empty">沒有符合條件的資料</div></td></tr>';
 
   document.getElementById('exp-cards').innerHTML= arr.length? arr.map(e=>`<div class="ecard">
     <div class="r1"><div class="p">${esc(e.purpose)}</div><div class="a">${nt(e.amount)}</div></div>
-    <div class="r2"><div class="meta">${esc(e.date||'')}　${esc(e.cat||'')}　代墊：<b>${esc(e.payer||'-')}</b></div>
+    <div class="r2"><div class="meta">${esc(e.date||'')}　代墊：<b>${esc(e.payer||'-')}</b></div>
       <button class="pill ${e.status}" onclick="cycleStatus('${e.id}')">${ST_LABEL[e.status]}</button></div>
     ${e.note?`<div class="meta" style="margin-top:5px">📝 ${esc(e.note)}</div>`:''}
     ${e.signBy?`<div class="meta" style="margin-top:5px">✍️ ${esc(e.signBy)} 已簽收${e.signAt?'（'+new Date(e.signAt).toLocaleDateString('zh-TW')+'）':''}</div>`:''}
@@ -729,16 +732,40 @@ function dropSig(e){
 }
 function cycleStatus(id){
   const e=state.expenses[id]; if(!e) return;
-  if(e.status==='paid'){                       // 已到帳 → 退回請款中，取消這筆的簽收
-    if(!confirm(`把「${e.purpose}」退回「請款中」？\n這筆的簽收紀錄會取消。`)) return;
-    dropSig(e);
-    e.status='claimed'; delete e.sigId; delete e.signBy; delete e.signAt;
-    e.upd=Date.now(); save(); cloudSet('expenses/'+id,e); renderAll();
-    showToast('已退回請款中');
-  }else{
-    openSig([e]);                              // 請款中 → 已到帳，先簽名
-  }
+  if(e.status==='paid') openUnsign(e);          // 已到帳 → 退回，要嚴格確認
+  else openSig([e]);                            // 請款中 → 已到帳，一定要先簽名
 }
+
+// ---- 取消簽收（嚴格確認：勾選才能按） ----
+let _unsignId=null;
+function openUnsign(e){
+  _unsignId=e.id;
+  const shared=expList().filter(x=>x.id!==e.id && x.sigId && x.sigId===e.sigId).length;
+  document.getElementById('unsign-info').innerHTML=
+    `<b style="font-size:14.5px">${esc(e.purpose)}</b>　<b>${nt(e.amount)}</b><br>`+
+    `代墊者：<b>${esc(e.payer||'（未填）')}</b>　日期：${esc(e.date||'')}<br>`+
+    (e.signBy?`簽收：${esc(e.signBy)}　${e.signAt?new Date(e.signAt).toLocaleString('zh-TW'):''}`:'（無簽名紀錄）')+
+    (shared?`<br><span style="color:var(--warn)">※ 這張簽名還涵蓋另外 ${shared} 筆，那些不受影響</span>`:'');
+  document.getElementById('unsign-ck-label').textContent=
+    `我確認 ${e.payer||'代墊者'} 尚未收到這筆 ${nt(e.amount)}`;
+  const ck=document.getElementById('unsign-ck'); ck.checked=false;
+  updUnsignBtn();
+  document.getElementById('unsign-mask').classList.add('on');
+}
+function updUnsignBtn(){
+  document.getElementById('unsign-go').disabled=!document.getElementById('unsign-ck').checked;
+}
+function closeUnsign(){ document.getElementById('unsign-mask').classList.remove('on'); _unsignId=null; }
+function doUnsign(){
+  if(!document.getElementById('unsign-ck').checked) return;
+  const e=state.expenses[_unsignId]; if(!e){ closeUnsign(); return; }
+  dropSig(e);
+  e.status='claimed'; delete e.sigId; delete e.signBy; delete e.signAt;
+  e.upd=Date.now(); save(); cloudSet('expenses/'+e.id,e);
+  closeUnsign(); renderAll();
+  showToast('已退回請款中，簽收紀錄已取消','warn');
+}
+document.getElementById('unsign-mask').addEventListener('click',ev=>{ if(ev.target.id==='unsign-mask') closeUnsign(); });
 
 // ============================================================
 // 渲染：請款結算
@@ -812,16 +839,6 @@ function renderStats(){
     </div>`;
   }).join('') : '<div class="empty">尚無資料</div>';
 
-  const cm={};
-  expList().forEach(e=>{ const c=e.cat||'未分類'; cm[c]=(cm[c]||0)+(Number(e.amount)||0); });
-  const cks=Object.keys(cm).sort((a,b)=>cm[b]-cm[a]);
-  const cmax=Math.max(1,...cks.map(k=>cm[k])), ctot=cks.reduce((a,k)=>a+cm[k],0)||1;
-  document.getElementById('stats-cats').innerHTML= cks.length? cks.map((k,i)=>`
-    <div class="bar-row"><div class="bl" style="width:88px">${esc(k)}</div>
-      <div class="bt"><div class="bf" style="width:${cm[k]/cmax*100}%;background:hsl(${210-i*22},52%,${52+i*3}%)"></div></div>
-      <div class="bv">${nt(cm[k])}</div><div style="width:44px;text-align:right;color:var(--muted);font-size:12px">${(cm[k]/ctot*100).toFixed(0)}%</div></div>`).join('')
-    : '<div class="empty">尚無資料</div>';
-
   const pm={};
   expList().forEach(e=>{ const p=e.payer||'（未填）'; pm[p]=pm[p]||{tot:0,open:0,n:0}; pm[p].tot+=Number(e.amount)||0; pm[p].n++; if(e.status!=='paid') pm[p].open+=Number(e.amount)||0; });
   const pks=Object.keys(pm).sort((a,b)=>pm[b].tot-pm[a].tot);
@@ -855,8 +872,6 @@ function renderSet(){
 
   document.getElementById('member-list').innerHTML= state.members.length? state.members.map((m,i)=>
     `<div class="mtag">${esc(m)}<span class="x" onclick="delMember(${i})">×</span></div>`).join('') : '<div class="empty">尚無成員</div>';
-  document.getElementById('cat-list').innerHTML= state.cats.length? state.cats.map((c,i)=>
-    `<div class="mtag">${esc(c)}<span class="x" onclick="delCat(${i})">×</span></div>`).join('') : '<div class="empty">尚無分類</div>';
 
   document.getElementById('set-opening').value=state.opening||0;
   document.getElementById('set-cloud').textContent=getCloudUrl()+DB_REF;
@@ -887,17 +902,6 @@ function delMember(i){
   if(!confirm(`移除成員「${n}」？`+(used?`\n\n他有 ${used} 筆代墊紀錄，紀錄會保留不受影響。`:''))) return;
   state.members.splice(i,1); save(); cloudSet('members',state.members); renderAll();
 }
-function addCat(){
-  const el=document.getElementById('new-cat'); const v=el.value.trim();
-  if(!v) return;
-  if(state.cats.includes(v)){ showToast('已存在','warn'); return; }
-  state.cats.push(v); el.value='';
-  save(); cloudSet('cats',state.cats); renderAll(); showToast('已新增 '+v,'ok');
-}
-function delCat(i){
-  if(!confirm('移除分類「'+state.cats[i]+'」？既有紀錄不受影響。')) return;
-  state.cats.splice(i,1); save(); cloudSet('cats',state.cats); renderAll();
-}
 function saveOpening(v){
   state.opening=Number(v)||0; save(); cloudSet('opening',state.opening); renderAll(); showToast('期初結餘已更新','ok');
 }
@@ -917,14 +921,15 @@ function openExp(id){
   document.getElementById('m-amt').value=e?e.amount:'';
   document.getElementById('m-purpose').value=e?e.purpose:'';
   document.getElementById('m-note').value=e?(e.note||''):'';
-  const cs=document.getElementById('m-cat');
-  cs.innerHTML=state.cats.map(c=>`<option>${esc(c)}</option>`).join('')+'<option value="">（不分類）</option>';
-  cs.value=e?(e.cat||''):(state.cats[0]||'');
   const ps=document.getElementById('m-payer');
   const extra=e&&e.payer&&!state.members.includes(e.payer)?[e.payer]:[];
   ps.innerHTML='<option value="">（未填）</option>'+state.members.concat(extra).map(m=>`<option>${esc(m)}</option>`).join('');
   ps.value=e?(e.payer||''):(_me||'');
-  setMStatus(e?e.status:'claimed');
+  // 狀態唯讀：只能透過簽名流程切換，避免不簽名就標成已到帳
+  document.getElementById('m-status-row').style.display=e?'':'none';
+  if(e) document.getElementById('m-status-view').innerHTML=
+    `<span class="pill ${e.status}">${ST_LABEL[e.status]}</span>`+
+    (e.signBy?`　<span style="font-size:12.5px;color:var(--muted)">✍️ ${esc(e.signBy)} 已簽收</span>`:'');
   document.getElementById('m-del').style.display=e?'block':'none';
   // 照片
   mPhoto=null; mPhotoChanged=false; showPhoto(null);
@@ -937,10 +942,6 @@ function openExp(id){
   setTimeout(()=>document.getElementById('m-purpose').focus(),80);
 }
 function closeExp(){ document.getElementById('exp-mask').classList.remove('on'); editId=null; mPhoto=null; mPhotoChanged=false; }
-function setMStatus(v){
-  mStatus=v;
-  document.querySelectorAll('#m-status button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
-}
 function saveExp(){
   const date=document.getElementById('m-date').value;
   const amount=Number(document.getElementById('m-amt').value)||0;
@@ -954,9 +955,8 @@ function saveExp(){
   const wasEdit=!!editId;
   const e={
     id, date, amount, purpose,
-    cat:document.getElementById('m-cat').value,
     payer:document.getElementById('m-payer').value,
-    status:mStatus,
+    status: old.status==='paid' ? 'paid' : 'claimed',   // 狀態只能由簽名流程改
     note:document.getElementById('m-note').value.trim(),
     by: old.by || _me || '',
     ts: old.ts || Date.now(),
@@ -1134,11 +1134,11 @@ document.getElementById('exp-mask').addEventListener('click',ev=>{ if(ev.target.
 function exportCSV(all){
   const arr=all?expList().slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')):filteredExp();
   if(!arr.length){ showToast('沒有可匯出的資料','warn'); return; }
-  const head=['日期','用途','分類','金額','代墊者','狀態','發票照片','簽收人','簽收時間','備註','填表人'];
-  const rows=arr.map(e=>[e.date||'',e.purpose||'',e.cat||'',e.amount||0,e.payer||'',ST_LABEL[e.status]||'',
+  const head=['日期','用途','金額','代墊者','狀態','發票照片','簽收人','簽收時間','備註','填表人'];
+  const rows=arr.map(e=>[e.date||'',e.purpose||'',e.amount||0,e.payer||'',ST_LABEL[e.status]||'',
     e.hasPhoto?'有':'', e.signBy||'', e.signAt?new Date(e.signAt).toLocaleString('zh-TW'):'', e.note||'', e.by||'']);
   rows.push([]);
-  rows.push(['合計','','',sum(arr),'','','','','','','']);
+  rows.push(['合計','',sum(arr),'','','','','','','']);
   const csv=[head].concat(rows).map(r=>r.map(c=>{
     const s=String(c==null?'':c);
     return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
@@ -1147,6 +1147,90 @@ function exportCSV(all){
     '天晟急診科基金_'+(all?'全部':ymLabel(document.getElementById('f-month').value==='all'?viewYM:document.getElementById('f-month').value))+'.csv');
   showToast('已匯出 '+arr.length+' 筆','ok');
 }
+// ---- PDF：產生列印版報表，用瀏覽器的「另存為 PDF」 ----
+function exportPDF(all){
+  const arr=all?expList().slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')):filteredExp().slice().reverse();
+  if(!arr.length){ showToast('沒有可匯出的資料','warn'); return; }
+  const fm=document.getElementById('f-month').value;
+  const period = all||fm==='all' ? '全部期間' : ymLabel(fm);
+  const inc = all||fm==='all' ? totalIncome() : incomeOf(fm);
+  const out=sum(arr);
+  const grp=byPayer(arr);
+  const names=Object.keys(grp).sort((a,b)=>{
+    const ua=sum(grp[a].filter(x=>x.status!=='paid')), ub=sum(grp[b].filter(x=>x.status!=='paid'));
+    return ub-ua || a.localeCompare(b,'zh-Hant');
+  });
+  const now=new Date().toLocaleString('zh-TW');
+  const rows=arr.map((e,i)=>`<tr>
+    <td class="c">${i+1}</td><td>${esc(e.date||'')}</td><td>${esc(e.purpose||'')}${e.note?`<div class="nt">${esc(e.note)}</div>`:''}</td>
+    <td class="r">${nt(e.amount)}</td><td>${esc(e.payer||'')}</td>
+    <td class="c">${e.hasPhoto?'✓':''}</td>
+    <td class="c ${e.status}">${ST_LABEL[e.status]}</td>
+    <td class="c">${e.signBy?esc(e.signBy)+'<div class="nt">'+(e.signAt?new Date(e.signAt).toLocaleDateString('zh-TW'):'')+'</div>':''}</td></tr>`).join('');
+  const settle=names.map(n=>{
+    const c=sum(grp[n].filter(x=>x.status!=='paid')), d=sum(grp[n].filter(x=>x.status==='paid'));
+    return `<tr><td>${esc(n)}</td><td class="r">${grp[n].length}</td><td class="r">${nt(c+d)}</td>
+      <td class="r ${c>0?'claimed':''}">${nt(c)}</td><td class="r">${nt(d)}</td>
+      <td style="height:34px"></td></tr>`;
+  }).join('');
+  const html=`<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>天晟急診科基金 ${period}</title><style>
+  @page{size:A4;margin:14mm 12mm;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Microsoft JhengHei','微軟正黑體',sans-serif;font-size:11pt;color:#000;line-height:1.5;}
+  h1{font-size:17pt;text-align:center;letter-spacing:2px;}
+  .sub{text-align:center;font-size:10pt;color:#444;margin:3px 0 12px;}
+  h2{font-size:12pt;border-left:4px solid #1a4a7a;padding-left:7px;margin:16px 0 7px;}
+  table{width:100%;border-collapse:collapse;font-size:10pt;}
+  th{background:#e9eef5;border:1px solid #9aa8b8;padding:5px 6px;text-align:left;font-size:9.5pt;}
+  td{border:1px solid #b8c3d0;padding:4px 6px;vertical-align:top;}
+  .r{text-align:right;} .c{text-align:center;}
+  .nt{font-size:8.5pt;color:#555;}
+  .claimed{color:#b8500a;font-weight:bold;} .paid{color:#1a6b41;}
+  .sum{display:flex;gap:8px;margin-bottom:6px;}
+  .sum div{flex:1;border:1px solid #b8c3d0;padding:7px 9px;}
+  .sum .l{font-size:9pt;color:#555;} .sum .v{font-size:13pt;font-weight:bold;}
+  tfoot td{background:#f2f5f9;font-weight:bold;}
+  .sign{margin-top:22px;display:flex;gap:40px;font-size:10pt;}
+  .sign div{flex:1;border-top:1px solid #000;padding-top:5px;text-align:center;}
+  .ft{margin-top:14px;font-size:8.5pt;color:#666;text-align:right;}
+  thead{display:table-header-group;} tr{break-inside:avoid;}
+  </style></head><body>
+  <h1>天晟醫院急診醫學科　科基金收支報表</h1>
+  <div class="sub">${period}　　列印時間：${now}</div>
+  <div class="sum">
+    <div><div class="l">入帳</div><div class="v">${nt(inc)}</div></div>
+    <div><div class="l">支出</div><div class="v">${nt(out)}</div></div>
+    <div><div class="l">收支差額</div><div class="v">${nt(inc-out)}</div></div>
+    <div><div class="l">代墊者尚未收到</div><div class="v">${nt(sum(arr.filter(e=>e.status!=='paid')))}</div></div>
+  </div>
+  <h2>支出明細（${arr.length} 筆）</h2>
+  <table><thead><tr><th style="width:26px">#</th><th style="width:74px">日期</th><th>用途</th>
+    <th style="width:80px" class="r">金額</th><th style="width:66px">代墊者</th>
+    <th style="width:32px" class="c">發票</th><th style="width:56px" class="c">狀態</th><th style="width:74px" class="c">簽收</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr><td colspan="3" class="r">合計</td><td class="r">${nt(out)}</td><td colspan="4"></td></tr></tfoot></table>
+  <h2>代墊者結算</h2>
+  <table><thead><tr><th>代墊者</th><th class="r" style="width:50px">筆數</th><th class="r" style="width:88px">累計代墊</th>
+    <th class="r" style="width:88px">請款中</th><th class="r" style="width:88px">已到帳</th><th style="width:110px">領款簽章</th></tr></thead>
+    <tbody>${settle}</tbody></table>
+  <div class="sign"><div>經辦人</div><div>科主任</div><div>會計</div></div>
+  <div class="ft">本報表由天晟急診科基金系統產生，簽收紀錄以系統內電子簽名為準</div>
+  </body></html>`;
+
+  const ifr=document.createElement('iframe');
+  ifr.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+  document.body.appendChild(ifr);
+  const d=ifr.contentWindow.document;
+  d.open(); d.write(html); d.close();
+  ifr.onload=()=>{
+    setTimeout(()=>{
+      try{ ifr.contentWindow.focus(); ifr.contentWindow.print(); }catch(err){ showToast('列印失敗：'+err.message,'warn'); }
+      setTimeout(()=>ifr.remove(),60000);
+    },250);
+  };
+  showToast('請在列印視窗選「另存為 PDF」','ok');
+}
+
 function backupJSON(){
   dl(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),
     '科基金備份_'+todayStr()+'.json');
@@ -1200,14 +1284,11 @@ function switchTab(t){
 // ============================================================
 function renderAll(){
   // 篩選器選項
-  const fp=document.getElementById('f-payer'), fc=document.getElementById('f-cat');
-  const pv=fp.value, cv=fc.value;
+  const fp=document.getElementById('f-payer');
+  const pv=fp.value;
   const payers=[...new Set(expList().map(e=>e.payer).filter(Boolean).concat(state.members))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
   fp.innerHTML='<option value="all">全部代墊者</option>'+payers.map(p=>`<option>${esc(p)}</option>`).join('');
   fp.value=payers.includes(pv)?pv:'all';
-  const cats=[...new Set(expList().map(e=>e.cat).filter(Boolean).concat(state.cats))];
-  fc.innerHTML='<option value="all">全部分類</option>'+cats.map(c=>`<option>${esc(c)}</option>`).join('');
-  fc.value=cats.includes(cv)?cv:'all';
   const fmPrev=document.getElementById('f-month').value;
   fillMonthSelect('f-month',fmPrev&&fmPrev!=='all'?fmPrev:'all');
   if(fmPrev==='all'||!fmPrev) document.getElementById('f-month').value='all';
