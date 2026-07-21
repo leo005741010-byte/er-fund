@@ -41,6 +41,7 @@ input,select,textarea{font-family:inherit;font-size:15px;}
 #header .hbtn{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.32);color:#fff;
   border-radius:8px;padding:6px 11px;font-size:13px;font-weight:600;}
 #header .hbtn:active{background:rgba(255,255,255,.34);}
+#header .hbtn:disabled{opacity:.35;}
 #cloud-status{font-size:12px;font-weight:600;white-space:nowrap;}
 
 /* ---------- tabs ---------- */
@@ -252,6 +253,8 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
 <div id="header">
   <h1>💰 天晟急診科基金</h1>
   <span id="cloud-status">☁️ 連線中…</span>
+  <button class="hbtn" id="btn-undo" onclick="doUndo()" title="還原上一個動作">↩ 還原</button>
+  <button class="hbtn" id="btn-redo" onclick="doRedo()" title="重做">↪ 重做</button>
   <a class="hbtn" href="操作說明.html" style="text-decoration:none;">說明</a>
   <button class="hbtn" onclick="manualSync()">同步</button>
 </div>
@@ -548,7 +551,7 @@ const DEFAULT_CLOUD_URL='https://tenchener-488d2-default-rtdb.firebaseio.com/';
 const DB_REF='erFundData';
 const FILES_REF='erFundFiles';   // 照片/簽名另存一支，帳目同步時不會被拖慢
 const TAX_ID='26708183';         // 醫院統一編號（請廠商開發票用）
-const APP_VER='2026.07.21e';     // 版本；設定頁可看，用來確認是否已更新到最新
+const APP_VER='2026.07.21f';     // 版本；設定頁可看，用來確認是否已更新到最新
 
 const ST_LABEL={claimed:'請款中',paid:'已到帳'};
 
@@ -673,6 +676,82 @@ function pushAll(){
   _fbRef.set({
     expenses:state.expenses,income:state.income,members:state.members,opening:state.opening
   }).catch(e=>showToast('☁️ 上傳失敗：'+e.message,'warn'));
+}
+
+// ============================================================
+// 還原 / 重做
+// 每個動作記下「哪幾個節點、改之前是什麼、改之後是什麼」，
+// 還原就是把 before 寫回去。因為是逐節點寫入，不會動到別人同時改的東西。
+// ============================================================
+const UNDO_MAX=30;
+let _undo=[], _redo=[];
+
+// path 例：'expenses/<id>'、'income/2026-07'、'members'、'opening'
+function writePath(path,val){
+  const i=path.indexOf('/');
+  const head=i<0?path:path.slice(0,i), key=i<0?null:path.slice(i+1);
+  if(head==='expenses'){ if(val==null) delete state.expenses[key]; else state.expenses[key]=val; }
+  else if(head==='income'){ if(val==null) delete state.income[key]; else state.income[key]=val; }
+  else if(head==='members'){ state.members=val||[]; }
+  else if(head==='opening'){ state.opening=Number(val)||0; }
+  if(val==null) cloudRemove(path); else cloudSet(path,val);
+}
+
+// 執行一個可還原的動作
+function applyChange(label,changes,opts){
+  changes.forEach(c=>writePath(c.path,c.after));
+  const entry={label,changes,pendingDel:(opts&&opts.pendingDel)||[]};
+  _undo.push(entry);
+  while(_undo.length>UNDO_MAX) commitPending(_undo.shift());
+  _redo.forEach(commitPending); _redo=[];
+  save(); renderAll();
+}
+
+// 支出被刪掉時，照片/簽名檔先留著（還原才救得回來）；
+// 等這個動作從還原堆疊掉出去、而且確定沒有任何一筆再引用它，才真的刪檔
+function commitPending(e){
+  (e.pendingDel||[]).forEach(path=>{
+    if(path.startsWith('photo/')){
+      const pid=path.slice(6);
+      if(!expList().some(x=>(x.photos||[]).includes(pid))) fileDel(path);
+    }else if(path.startsWith('sig/')){
+      const sid=path.slice(4);
+      if(!expList().some(x=>x.sigId===sid)) fileDel(path);
+    }
+  });
+}
+
+function doUndo(){
+  const e=_undo.pop();
+  if(!e){ showToast('沒有可還原的動作','warn'); return; }
+  e.changes.forEach(c=>writePath(c.path,c.before));
+  _redo.push(e);
+  save(); renderAll();
+  showToast('↩ 已還原：'+e.label,'ok');
+}
+function doRedo(){
+  const e=_redo.pop();
+  if(!e){ showToast('沒有可重做的動作','warn'); return; }
+  e.changes.forEach(c=>writePath(c.path,c.after));
+  _undo.push(e);
+  save(); renderAll();
+  showToast('↪ 已重做：'+e.label,'ok');
+}
+// 電腦版鍵盤快速鍵
+document.addEventListener('keydown',ev=>{
+  if(!(ev.ctrlKey||ev.metaKey)) return;
+  const t=ev.target.tagName;
+  if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT') return;   // 打字時不攔
+  const k=ev.key.toLowerCase();
+  if(k==='z'&&!ev.shiftKey){ ev.preventDefault(); doUndo(); }
+  else if(k==='y'||(k==='z'&&ev.shiftKey)){ ev.preventDefault(); doRedo(); }
+});
+function updateUndoBtns(){
+  const u=document.getElementById('btn-undo'), r=document.getElementById('btn-redo');
+  if(!u||!r) return;
+  u.disabled=!_undo.length; r.disabled=!_redo.length;
+  u.title=_undo.length?('還原：'+_undo[_undo.length-1].label):'沒有可還原的動作';
+  r.title=_redo.length?('重做：'+_redo[_redo.length-1].label):'沒有可重做的動作';
 }
 
 // ---- 照片 / 簽名（存在 erFundFiles，需要時才抓） ----
@@ -825,12 +904,6 @@ function renderExp(){
   document.getElementById('exp-sum').innerHTML=`合計 <span style="color:var(--navy);font-size:17px">${nt(tot)}</span>
     <span style="color:var(--muted);font-weight:600;font-size:12.5px">（其中待付 ${nt(unpaid)}）</span>`;
 }
-// 一張簽名可能涵蓋多筆；只有沒人再引用時才真的刪掉圖檔
-function dropSig(e){
-  if(!e||!e.sigId) return;
-  const others=expList().filter(x=>x.id!==e.id && x.sigId===e.sigId).length;
-  if(!others) fileDel('sig/'+e.sigId);
-}
 function cycleStatus(id){
   const e=state.expenses[id]; if(!e) return;
   if(e.status==='paid') openUnsign(e);          // 已到帳 → 退回，要嚴格確認
@@ -860,11 +933,14 @@ function closeUnsign(){ document.getElementById('unsign-mask').classList.remove(
 function doUnsign(){
   if(!document.getElementById('unsign-ck').checked) return;
   const e=state.expenses[_unsignId]; if(!e){ closeUnsign(); return; }
-  dropSig(e);
-  e.status='claimed'; delete e.sigId; delete e.signBy; delete e.signAt;
-  e.upd=Date.now(); save(); cloudSet('expenses/'+e.id,e);
-  closeUnsign(); renderAll();
-  showToast('已退回請款中，簽收紀錄已取消','warn');
+  const before=Object.assign({},e);
+  const after=Object.assign({},e,{status:'claimed',upd:Date.now()});
+  delete after.sigId; delete after.signBy; delete after.signAt;
+  // 簽名圖先留著，還原時才救得回來
+  const pend = e.sigId ? ['sig/'+e.sigId] : [];
+  closeUnsign();
+  applyChange('取消「'+e.purpose+'」的簽收',[{path:'expenses/'+e.id, before, after}],{pendingDel:pend});
+  showToast('已退回請款中，可按「↩ 還原」復原','warn');
 }
 document.getElementById('unsign-mask').addEventListener('click',ev=>{ if(ev.target.id==='unsign-mask') closeUnsign(); });
 
@@ -1016,29 +1092,37 @@ function saveIncome(){
   const ym=document.getElementById('inc-month').value;
   const amt=Number(document.getElementById('inc-amt').value)||0;
   const note=document.getElementById('inc-note').value.trim();
-  state.income[ym]={amount:amt,note:note};
-  save(); cloudSet('income/'+ym,state.income[ym]); renderAll();
+  applyChange(ymLabel(ym)+' 入帳改為 '+nt(amt),
+    [{path:'income/'+ym, before:state.income[ym]||null, after:{amount:amt,note:note}}]);
   showToast(ymLabel(ym)+' 入帳已儲存 '+nt(amt),'ok');
 }
 function delIncome(ym){
   if(!confirm('刪除 '+ymLabel(ym)+' 的入帳紀錄？')) return;
-  delete state.income[ym]; save(); cloudRemove('income/'+ym); renderAll(); showToast('已刪除');
+  applyChange('刪除 '+ymLabel(ym)+' 入帳',
+    [{path:'income/'+ym, before:state.income[ym]||null, after:null}]);
+  showToast('已刪除，可按「↩ 還原」救回');
 }
 function addMember(){
   const el=document.getElementById('new-member'); const v=el.value.trim();
   if(!v) return;
   if(state.members.includes(v)){ showToast('已存在','warn'); return; }
-  state.members.push(v); el.value='';
-  save(); cloudSet('members',state.members); renderAll(); showToast('已新增 '+v,'ok');
+  el.value='';
+  applyChange('新增成員 '+v,
+    [{path:'members', before:state.members.slice(), after:state.members.concat([v])}]);
+  showToast('已新增 '+v,'ok');
 }
 function delMember(i){
   const n=state.members[i];
   const used=expList().filter(e=>e.payer===n).length;
   if(!confirm(`移除成員「${n}」？`+(used?`\n\n他有 ${used} 筆代墊紀錄，紀錄會保留不受影響。`:''))) return;
-  state.members.splice(i,1); save(); cloudSet('members',state.members); renderAll();
+  const after=state.members.slice(); after.splice(i,1);
+  applyChange('移除成員 '+n,[{path:'members', before:state.members.slice(), after}]);
 }
 function saveOpening(v){
-  state.opening=Number(v)||0; save(); cloudSet('opening',state.opening); renderAll(); showToast('期初結餘已更新','ok');
+  const nv=Number(v)||0;
+  if(nv===state.opening) return;
+  applyChange('期初結餘改為 '+nt(nv),[{path:'opening', before:state.opening, after:nv}]);
+  showToast('期初結餘已更新','ok');
 }
 
 // ============================================================
@@ -1108,10 +1192,13 @@ function saveExp(){
   const finish=()=>{
     e.photos=keep.filter(p=>!p.failed).map(p=>p.pid);
     e.hasPhoto=e.photos.length>0;
-    state.expenses[id]=e;
-    save(); cloudSet('expenses/'+id,e);
-    mRemoved.forEach(pid=>fileDel('photo/'+pid));
-    closeExp(); viewYM=ymOfDate(date); renderAll();
+    viewYM=ymOfDate(date);
+    applyChange(
+      (wasEdit?'修改支出「':'新增支出「')+purpose+'」',
+      [{path:'expenses/'+id, before:wasEdit?old:null, after:e}],
+      {pendingDel:mRemoved.map(pid=>'photo/'+pid)}
+    );
+    closeExp();
     showToast(wasEdit?'已更新':'已新增 '+nt(amount),'ok');
   };
   if(!uploads.length){ finish(); return; }
@@ -1129,11 +1216,12 @@ function delExp(){
   const e=state.expenses[editId];
   if(!confirm(`刪除「${e.purpose}」${nt(e.amount)}？此動作無法復原。`)) return;
   const id=editId;
-  (e.photos||[]).forEach(pid=>fileDel('photo/'+pid));
-  dropSig(e);
-  delete state.expenses[id];
-  save(); cloudRemove('expenses/'+id);
-  closeExp(); renderAll(); showToast('已刪除');
+  const pend=(e.photos||[]).map(pid=>'photo/'+pid);
+  if(e.sigId) pend.push('sig/'+e.sigId);
+  applyChange('刪除支出「'+e.purpose+'」',
+    [{path:'expenses/'+id, before:e, after:null}], {pendingDel:pend});
+  closeExp();
+  showToast('已刪除，可按「↩ 還原」救回');
 }
 
 // ============================================================
@@ -1278,11 +1366,13 @@ function confirmSig(){
   const items=_sigItems.slice();
   showToast('儲存簽名中…');
   filePut('sig/'+sigId,{img,by:name,at,amount:tot,ids:items.map(e=>e.id)}).then(()=>{
-    items.forEach(e=>{
-      e.status='paid'; e.sigId=sigId; e.signBy=name; e.signAt=at; e.upd=Date.now();
-      cloudSet('expenses/'+e.id,e);
+    const changes=items.map(e=>{
+      const before=Object.assign({},e);
+      const after=Object.assign({},e,{status:'paid',sigId,signBy:name,signAt:at,upd:Date.now()});
+      return {path:'expenses/'+e.id, before, after};
     });
-    save(); closeSig(); renderAll();
+    closeSig();
+    applyChange((name||'代墊者')+' 簽收 '+nt(tot)+'（'+items.length+' 筆）',changes);
     showToast('✔ '+(name||'代墊者')+' 已簽收 '+nt(tot),'ok');
   }).catch(err=>showToast('簽名儲存失敗：'+err.message,'warn'));
 }
@@ -1488,6 +1578,7 @@ function renderAll(){
   fp.innerHTML='<option value="all">全部代墊者</option>'+payers.map(p=>`<option>${esc(p)}</option>`).join('');
   fp.value=payers.includes(pv)?pv:'all';
   setMonthField('f-month',document.getElementById('f-month').value||'all');
+  updateUndoBtns();
 
   renderDash(); renderExp(); renderSettle(); renderStats(); renderSet();
 }

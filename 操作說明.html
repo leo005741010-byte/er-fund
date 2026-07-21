@@ -96,7 +96,8 @@ footer{text-align:center;color:var(--muted);font-size:12.5px;padding:20px;}
     <li><a href="#s7">請款結算：確保每個人都拿到錢</a></li>
     <li><a href="#s8">每月入帳與結餘</a></li>
     <li><a href="#s9">匯出 PDF、CSV、備份</a></li>
-    <li><a href="#s10">常見問題</a></li>
+    <li><a href="#s10">按錯了？還原與重做</a></li>
+    <li><a href="#s11">常見問題</a></li>
   </ol>
 </nav>
 
@@ -269,7 +270,36 @@ footer{text-align:center;color:var(--muted);font-size:12.5px;padding:20px;}
 </section>
 
 <section id="s10">
-  <h2><span class="n">10</span>常見問題</h2>
+  <h2><span class="n">10</span>按錯了？還原與重做</h2>
+  <div class="body">
+    <p>標題列右邊有兩個按鈕：</p>
+    <ul>
+      <li><b>↩ 還原</b> — 把上一個動作退回去</li>
+      <li><b>↪ 重做</b> — 還原之後反悔，再做一次</li>
+    </ul>
+    <p>可以連續按，往回退最多 <b>30 個動作</b>。按鈕變灰就是沒得退了。滑到按鈕上會顯示接下來要還原什麼，例如「還原：刪除支出『拜拜』」。電腦上也可以按 <code>Ctrl + Z</code> 還原、<code>Ctrl + Y</code> 重做。</p>
+
+    <h3>哪些動作可以還原</h3>
+    <div class="tw"><table>
+      <tr><th>動作</th><th>還原後</th></tr>
+      <tr><td>新增支出</td><td>那筆消失</td></tr>
+      <tr><td>修改支出</td><td>變回改之前的內容（含照片）</td></tr>
+      <tr><td>刪除支出</td><td><b>整筆救回來，連照片和簽名都在</b></td></tr>
+      <tr><td>簽名確認已到帳</td><td>退回請款中，簽名還留著</td></tr>
+      <tr><td>取消簽收</td><td>變回已到帳，原簽名復原</td></tr>
+      <tr><td>每月入帳的儲存／刪除</td><td>回到前一個金額</td></tr>
+      <tr><td>新增／移除成員</td><td>名單復原</td></tr>
+      <tr><td>期初結餘</td><td>回到前一個數字</td></tr>
+    </table></div>
+    <div class="note"><b>刪錯支出不用緊張。</b>刪掉時照片和簽名檔不會馬上真的刪除，會先留著等你反悔；要等這個動作被 30 個新動作擠出去之後才真正清掉。</div>
+    <div class="note warn"><b>還原是「我這台裝置的動作」。</b>還原會同步到雲端，所以其他人也會看到變回去。如果你要還原的那筆剛好被別人改過，你的還原會蓋掉他的修改 — 動作前先看一下狀況。<br>
+      另外，關掉 App 再打開，還原紀錄就沒了（不會跨次保留）。</div>
+    <div class="note bad">「設定 → 還原 JSON」是<b>另一回事</b>，那是用備份檔整包覆蓋，不在還原按鈕的管轄範圍，按下去就回不來了。</div>
+  </div>
+</section>
+
+<section id="s11">
+  <h2><span class="n">11</span>常見問題</h2>
   <div class="body">
     <h3>兩個人同時在改，會不會互相蓋掉？</h3>
     <p>不會。系統是一筆一筆分開存的，你改你那筆、他改他那筆，互不影響。</p>
@@ -278,7 +308,7 @@ footer{text-align:center;color:var(--muted);font-size:12.5px;padding:20px;}
     <p>知道網址的人都看得到，<b>沒有設密碼</b>。裡面有醫師姓名和金額，網址請不要外流。要加密碼保護隨時可以加回來。</p>
 
     <h3>不小心刪掉一筆怎麼辦？</h3>
-    <p>刪除無法復原，雲端上也會一起消失。所以刪除前會跳出確認。真的刪錯了，只能用備份 JSON 還原，或手動重新輸入。</p>
+    <p>按標題列的「<b>↩ 還原</b>」就救回來了，照片和簽名都會一起回來。詳見上一節。</p>
 
     <h3>照片上傳失敗？</h3>
     <p>檢查右上角是不是「☁️ 已連線」。如果顯示未連線，按旁邊的「同步」重新連。照片一定要連線才能上傳。</p>
