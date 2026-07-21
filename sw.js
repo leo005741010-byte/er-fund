@@ -1,5 +1,5 @@
 // 天晟急診科基金 Service Worker
-const CACHE='er-fund-v6';
+const CACHE='er-fund-v7';
 const CORE=['./','./index.html','./操作說明.html','./manifest.json','./icon-192.png','./icon-512.png','./apple-touch-icon.png'];
 
 self.addEventListener('install', e=>{

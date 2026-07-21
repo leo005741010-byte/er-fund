@@ -42,6 +42,7 @@ input,select,textarea{font-family:inherit;font-size:15px;}
   border-radius:8px;padding:6px 11px;font-size:13px;font-weight:600;}
 #header .hbtn:active{background:rgba(255,255,255,.34);}
 #header .hbtn:disabled{opacity:.35;}
+@media(max-width:760px){#header .hbtn .ht{display:none;}}
 #cloud-status{font-size:12px;font-weight:600;white-space:nowrap;}
 
 /* ---------- tabs ---------- */
@@ -253,8 +254,8 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
 <div id="header">
   <h1>💰 天晟急診科基金</h1>
   <span id="cloud-status">☁️ 連線中…</span>
-  <button class="hbtn" id="btn-undo" onclick="doUndo()" title="還原上一個動作">↩ 還原</button>
-  <button class="hbtn" id="btn-redo" onclick="doRedo()" title="重做">↪ 重做</button>
+  <button class="hbtn" id="btn-undo" onclick="doUndo()" title="還原上一個動作">↩<span class="ht"> 還原</span></button>
+  <button class="hbtn" id="btn-redo" onclick="doRedo()" title="重做">↪<span class="ht"> 重做</span></button>
   <a class="hbtn" href="操作說明.html" style="text-decoration:none;">說明</a>
   <button class="hbtn" onclick="manualSync()">同步</button>
 </div>
@@ -551,7 +552,7 @@ const DEFAULT_CLOUD_URL='https://tenchener-488d2-default-rtdb.firebaseio.com/';
 const DB_REF='erFundData';
 const FILES_REF='erFundFiles';   // 照片/簽名另存一支，帳目同步時不會被拖慢
 const TAX_ID='26708183';         // 醫院統一編號（請廠商開發票用）
-const APP_VER='2026.07.21f';     // 版本；設定頁可看，用來確認是否已更新到最新
+const APP_VER='2026.07.21g';     // 版本；設定頁可看，用來確認是否已更新到最新
 
 const ST_LABEL={claimed:'請款中',paid:'已到帳'};
 
@@ -578,6 +579,8 @@ function ymLabel(ym){ const [y,m]=ym.split('-'); return y+'年'+parseInt(m,10)+'
 function nt(n){ const v=Math.round(n||0); return (v<0?'-NT$':'NT$')+Math.abs(v).toLocaleString('en-US'); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+// 把任意字串安全地塞進 inline onclick 的參數（encodeURIComponent 不會編碼單引號，要補）
+function jsArg(s){ return encodeURIComponent(String(s==null?'':s)).replace(/'/g,'%27'); }
 function expList(){ return Object.values(state.expenses||{}); }
 function showToast(msg,type=''){
   const t=document.getElementById('toast');
@@ -707,10 +710,21 @@ function applyChange(label,changes,opts){
   save(); renderAll();
 }
 
-// 支出被刪掉時，照片/簽名檔先留著（還原才救得回來）；
-// 等這個動作從還原堆疊掉出去、而且確定沒有任何一筆再引用它，才真的刪檔
-function commitPending(e){
-  (e.pendingDel||[]).forEach(path=>{
+// 支出被刪掉時，照片/簽名檔先留著（還原才救得回來）。
+// 一個動作被淘汰（擠出還原堆疊、或重做被新動作清空）時，把它前後狀態
+// 牽涉到的所有檔案都檢查一遍：目前沒有任何一筆支出引用的才真的刪。
+// 這樣「還原新增」後被丟棄的照片、被丟棄的簽名不會變成雲端孤兒檔。
+function commitPending(entry){
+  const cand=new Set(entry.pendingDel||[]);
+  (entry.changes||[]).forEach(c=>{
+    if(!c.path.startsWith('expenses/')) return;
+    [c.before,c.after].forEach(v=>{
+      if(!v) return;
+      (v.photos||[]).forEach(pid=>cand.add('photo/'+pid));
+      if(v.sigId) cand.add('sig/'+v.sigId);
+    });
+  });
+  cand.forEach(path=>{
     if(path.startsWith('photo/')){
       const pid=path.slice(6);
       if(!expList().some(x=>(x.photos||[]).includes(pid))) fileDel(path);
@@ -742,6 +756,8 @@ document.addEventListener('keydown',ev=>{
   if(!(ev.ctrlKey||ev.metaKey)) return;
   const t=ev.target.tagName;
   if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT') return;   // 打字時不攔
+  // 有視窗開著（編輯/簽名/取消簽收/月曆/檢視）時不攔，避免還原到看不見的地方
+  if(document.querySelector('.mask.on')||document.getElementById('viewer').classList.contains('on')) return;
   const k=ev.key.toLowerCase();
   if(k==='z'&&!ev.shiftKey){ ev.preventDefault(); doUndo(); }
   else if(k==='y'||(k==='z'&&ev.shiftKey)){ ev.preventDefault(); doRedo(); }
@@ -980,7 +996,7 @@ function renderSettle(){
           <button class="pill ${e.status}" onclick="cycleStatus('${e.id}')">${ST_LABEL[e.status]}</button></div>`).join('')}
       </div>`:''}
       <div class="pacts">
-        ${c>0?`<button class="btn sm green" onclick="bulkPaid('${esc(n)}')">✍️ 簽名確認已到帳（${open.length} 筆）</button>`:''}
+        ${c>0?`<button class="btn sm green" onclick="bulkPaid(decodeURIComponent('${jsArg(n)}'))">✍️ 簽名確認已到帳（${open.length} 筆）</button>`:''}
       </div>
     </div>`;
   }).join('') : '<div class="empty">尚無資料</div>';
@@ -1214,7 +1230,7 @@ function saveExp(){
 function delExp(){
   if(!editId) return;
   const e=state.expenses[editId];
-  if(!confirm(`刪除「${e.purpose}」${nt(e.amount)}？此動作無法復原。`)) return;
+  if(!confirm(`刪除「${e.purpose}」${nt(e.amount)}？\n（刪錯了可按「↩ 還原」救回）`)) return;
   const id=editId;
   const pend=(e.photos||[]).map(pid=>'photo/'+pid);
   if(e.sigId) pend.push('sig/'+e.sigId);
@@ -1360,10 +1376,12 @@ function closeSig(){ document.getElementById('sig-mask').classList.remove('on');
 function confirmSig(){
   if(!_sigDrawn){ showToast('請先簽名','warn'); return; }
   if(!_filesRef){ showToast('雲端未連線，簽名無法留存','warn'); return; }
+  // 以「此刻」的最新資料為準，不用開視窗當時的快照（期間可能被其他裝置改過）
+  const items=_sigItems.map(x=>state.expenses[x.id]).filter(e=>e&&e.status!=='paid');
+  if(!items.length){ closeSig(); showToast('這些項目已被其他人處理過了','warn'); renderAll(); return; }
   const img=document.getElementById('sigpad').toDataURL('image/png');
   const sigId=uid(), at=Date.now();
-  const name=_sigItems[0].payer||'', tot=sum(_sigItems);
-  const items=_sigItems.slice();
+  const name=items[0].payer||'', tot=sum(items);
   showToast('儲存簽名中…');
   filePut('sig/'+sigId,{img,by:name,at,amount:tot,ids:items.map(e=>e.id)}).then(()=>{
     const changes=items.map(e=>{
@@ -1404,7 +1422,10 @@ function exportPDF(all){
   const arr=all?expList().slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')):filteredExp().slice().reverse();
   if(!arr.length){ showToast('沒有可匯出的資料','warn'); return; }
   const fm=document.getElementById('f-month').value;
-  const period = all||fm==='all' ? '全部期間' : ymLabel(fm);
+  const kwv=(document.getElementById('f-kw').value||'').trim();
+  // 套了月份以外的篩選（代墊者/狀態/關鍵字）時，支出是部分的，入帳/差額對不上，不顯示
+  const partial=!all && (document.getElementById('f-payer').value!=='all'||stFilter!=='all'||kwv);
+  const period = (all||fm==='all' ? '全部期間' : ymLabel(fm)) + (partial?'（已套用篩選，僅列部分支出）':'');
   const inc = all||fm==='all' ? totalIncome() : incomeOf(fm);
   const out=sum(arr);
   const grp=byPayer(arr);
@@ -1450,9 +1471,9 @@ function exportPDF(all){
   <h1>天晟醫院急診醫學科　科基金收支報表</h1>
   <div class="sub">${period}　　統一編號：${TAX_ID}　　列印時間：${now}</div>
   <div class="sum">
-    <div><div class="l">入帳</div><div class="v">${nt(inc)}</div></div>
+    <div><div class="l">入帳</div><div class="v">${partial?'—':nt(inc)}</div></div>
     <div><div class="l">支出</div><div class="v">${nt(out)}</div></div>
-    <div><div class="l">收支差額</div><div class="v">${nt(inc-out)}</div></div>
+    <div><div class="l">收支差額</div><div class="v">${partial?'—':nt(inc-out)}</div></div>
     <div><div class="l">代墊者尚未收到</div><div class="v">${nt(sum(arr.filter(e=>e.status!=='paid')))}</div></div>
   </div>
   <h2>支出明細（${arr.length} 筆）</h2>
@@ -1495,7 +1516,9 @@ function restoreJSON(inp){
     try{
       const d=JSON.parse(r.result);
       if(!confirm('還原會以備份檔覆蓋目前所有資料（含雲端）。確定繼續？')) return;
-      Object.assign(state,d); normalize(); save(); pushAll(); renderAll();
+      Object.assign(state,d); normalize();
+      _undo=[]; _redo=[];   // 覆蓋前的還原紀錄已無意義，留著反而會把舊資料寫回
+      save(); pushAll(); renderAll();
       showToast('已還原','ok');
     }catch(e){ showToast('檔案格式錯誤','warn'); }
   };
