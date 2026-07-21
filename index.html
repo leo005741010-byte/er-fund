@@ -153,6 +153,13 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
 .mtag{background:#eef1f6;border-radius:8px;padding:7px 9px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:7px;}
 .mtag .x{color:var(--bad);font-weight:900;cursor:pointer;font-size:15px;line-height:1;}
 
+/* ---------- 統編列 ---------- */
+.taxbar{display:flex;align-items:center;gap:10px;background:#fffaf0;border:1.5px solid #f0d9a8;
+  border-radius:9px;padding:9px 12px;margin-bottom:12px;flex-wrap:wrap;}
+.taxbar .tl{font-size:12.5px;font-weight:800;color:#8a6420;}
+.taxbar .tn{flex:1;font-size:19px;font-weight:800;color:#22303f;letter-spacing:2.5px;
+  font-variant-numeric:tabular-nums;user-select:all;}
+
 /* 只在電腦版顯示（列印/PDF） */
 .deskonly{display:inline-block;}
 @media(max-width:760px){.deskonly{display:none!important;}}
@@ -294,6 +301,17 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
   <!-- ============ 設定 ============ -->
   <div class="pane" id="pane-set">
     <div class="sec">
+      <h3>🏥 醫院資訊</h3>
+      <div class="sec-body">
+        <div class="taxbar" style="margin-bottom:0;">
+          <span class="tl">統一編號</span>
+          <span class="tn" id="set-taxid"></span>
+          <button type="button" class="btn sm gray" onclick="copyTaxId()">複製</button>
+        </div>
+        <div class="hint" style="font-size:11.5px;color:var(--muted);margin-top:8px;">請廠商開立發票時報這組號碼，抬頭開天晟醫院。</div>
+      </div>
+    </div>
+    <div class="sec">
       <h3>🙋 我是誰</h3>
       <div class="sec-body">
         <div class="fld" style="margin:0;">
@@ -365,6 +383,11 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
       <div class="fld" id="m-status-row" style="display:none;"><label>目前狀態</label>
         <div id="m-status-view" style="padding:9px 11px;background:#f7f9fc;border-radius:8px;"></div>
         <div class="hint">狀態只能在明細或結算頁點標籤切換，切成「已到帳」時一定要代墊者簽名。</div>
+      </div>
+      <div class="taxbar">
+        <span class="tl">🧾 開發票統編</span>
+        <span class="tn" id="m-taxid"></span>
+        <button type="button" class="btn sm gray" onclick="copyTaxId()">複製</button>
       </div>
       <div class="fld"><label>發票／收據照片</label>
         <div class="photobox" id="m-photobox">
@@ -455,6 +478,7 @@ const ME_KEY='tienSheng_erFund_me';
 const DEFAULT_CLOUD_URL='https://tenchener-488d2-default-rtdb.firebaseio.com/';
 const DB_REF='erFundData';
 const FILES_REF='erFundFiles';   // 照片/簽名另存一支，帳目同步時不會被拖慢
+const TAX_ID='26708183';         // 醫院統一編號（請廠商開發票用）
 
 const ST_LABEL={claimed:'請款中',paid:'已到帳'};
 
@@ -873,10 +897,24 @@ function renderSet(){
   document.getElementById('member-list').innerHTML= state.members.length? state.members.map((m,i)=>
     `<div class="mtag">${esc(m)}<span class="x" onclick="delMember(${i})">×</span></div>`).join('') : '<div class="empty">尚無成員</div>';
 
+  document.getElementById('set-taxid').textContent=TAX_ID;
   document.getElementById('set-opening').value=state.opening||0;
   document.getElementById('set-cloud').textContent=getCloudUrl()+DB_REF;
 }
 function setMe(v){ _me=v; localStorage.setItem(ME_KEY,v); showToast(v?('已設定為 '+v):'已清除'); }
+function copyTaxId(){
+  const done=()=>showToast('已複製統編 '+TAX_ID,'ok');
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(TAX_ID).then(done).catch(fallbackCopy);
+  }else fallbackCopy();
+  function fallbackCopy(){
+    const ta=document.createElement('textarea');
+    ta.value=TAX_ID; ta.style.cssText='position:fixed;opacity:0;';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); done(); }catch(e){ showToast('請手動複製：'+TAX_ID,'warn'); }
+    ta.remove();
+  }
+}
 function saveIncome(){
   const ym=document.getElementById('inc-month').value;
   const amt=Number(document.getElementById('inc-amt').value)||0;
@@ -931,6 +969,7 @@ function openExp(id){
     `<span class="pill ${e.status}">${ST_LABEL[e.status]}</span>`+
     (e.signBy?`　<span style="font-size:12.5px;color:var(--muted)">✍️ ${esc(e.signBy)} 已簽收</span>`:'');
   document.getElementById('m-del').style.display=e?'block':'none';
+  document.getElementById('m-taxid').textContent=TAX_ID;
   // 照片
   mPhoto=null; mPhotoChanged=false; showPhoto(null);
   if(e&&e.hasPhoto){
@@ -1196,7 +1235,7 @@ function exportPDF(all){
   thead{display:table-header-group;} tr{break-inside:avoid;}
   </style></head><body>
   <h1>天晟醫院急診醫學科　科基金收支報表</h1>
-  <div class="sub">${period}　　列印時間：${now}</div>
+  <div class="sub">${period}　　統一編號：${TAX_ID}　　列印時間：${now}</div>
   <div class="sum">
     <div><div class="l">入帳</div><div class="v">${nt(inc)}</div></div>
     <div><div class="l">支出</div><div class="v">${nt(out)}</div></div>
