@@ -552,7 +552,7 @@ const DEFAULT_CLOUD_URL='https://tenchener-488d2-default-rtdb.firebaseio.com/';
 const DB_REF='erFundData';
 const FILES_REF='erFundFiles';   // 照片/簽名另存一支，帳目同步時不會被拖慢
 const TAX_ID='26708183';         // 醫院統一編號（請廠商開發票用）
-const APP_VER='2026.07.21g';     // 版本；設定頁可看，用來確認是否已更新到最新
+const APP_VER='2026.07.21h';     // 版本；設定頁可看，用來確認是否已更新到最新
 
 const ST_LABEL={claimed:'請款中',paid:'已到帳'};
 
@@ -644,11 +644,13 @@ async function initCloud(url){
     _fbApp=firebase.initializeApp({databaseURL:url.trim()},'erFund');
     _fbRef=firebase.database(_fbApp).ref(DB_REF);
     _filesRef=firebase.database(_fbApp).ref(FILES_REF);
+    _replayed=false;
     _fbRef.on('value', snap=>{
       const data=snap.val();
       if(!data){ pushAll(); return; }   // 雲端還沒資料：把本機的推上去
       applyCloudData(data);
       updateCloudStatus(true);
+      if(!_replayed){ _replayed=true; replayQueue(); }   // 補送離線期間累積的寫入
     }, err=>{ updateCloudStatus(false,'讀取失敗'); });
     localStorage.setItem(CLOUD_URL_KEY,url.trim());
     updateCloudStatus(true);
@@ -665,14 +667,34 @@ function applyCloudData(d){
   state.opening=Number(d.opening)||0;
   normalize(); save(); renderAll();
 }
+// ---- 離線寫入佇列 ----
+// 每筆寫入先記在 localStorage，伺服器確認寫入後才移除。
+// 離線時新增的資料，就算 App 在恢復連線前被關掉，下次開啟也會自動補送，
+// 不會被雲端快照蓋掉而消失。（7 天以上的舊佇列視為過期丟棄）
+const PENDQ_KEY='tienSheng_erFund_pendQ';
+let _pendQ=[];
+try{ _pendQ=(JSON.parse(localStorage.getItem(PENDQ_KEY)||'[]')||[]).filter(x=>x&&x.p&&(Date.now()-(x.t||0))<7*864e5); }catch(e){}
+function persistQ(){ try{ localStorage.setItem(PENDQ_KEY,JSON.stringify(_pendQ)); }catch(e){} }
+function dequeue(p,t){ const i=_pendQ.findIndex(x=>x.p===p&&x.t===t); if(i>=0){ _pendQ.splice(i,1); persistQ(); } }
 function cloudSet(path,val){
+  const v=(val===undefined?null:val);
+  _pendQ=_pendQ.filter(x=>x.p!==path);          // 同路徑只留最後一筆
+  const item={p:path,v,t:Date.now()};
+  _pendQ.push(item);
+  while(_pendQ.length>200) _pendQ.shift();
+  persistQ();
   if(!_fbRef) return;
-  _fbRef.child(path).set(val===undefined?null:val)
+  _fbRef.child(path).set(v)
+    .then(()=>dequeue(item.p,item.t))
     .catch(e=>showToast('☁️ 儲存失敗：'+e.message,'warn'));
 }
-function cloudRemove(path){
-  if(!_fbRef) return;
-  _fbRef.child(path).remove().catch(e=>showToast('☁️ 刪除失敗：'+e.message,'warn'));
+function cloudRemove(path){ cloudSet(path,null); }
+let _replayed=false;
+function replayQueue(){
+  if(!_fbRef||!_pendQ.length) return;
+  const items=_pendQ.slice();
+  items.forEach(it=>{ _fbRef.child(it.p).set(it.v).then(()=>dequeue(it.p,it.t)).catch(()=>{}); });
+  showToast('☁️ 已補送 '+items.length+' 筆離線期間的變更','ok');
 }
 function pushAll(){
   if(!_fbRef) return;
@@ -751,6 +773,12 @@ function doRedo(){
   save(); renderAll();
   showToast('↪ 已重做：'+e.label,'ok');
 }
+// Esc 關閉非資料輸入的視窗（檢視器/月曆；編輯與簽名不關，避免誤觸丟掉輸入）
+document.addEventListener('keydown',ev=>{
+  if(ev.key!=='Escape') return;
+  if(document.getElementById('viewer').classList.contains('on')) closeViewer();
+  else if(document.getElementById('mp-mask').classList.contains('on')) closeMonthPicker();
+});
 // 電腦版鍵盤快速鍵
 document.addEventListener('keydown',ev=>{
   if(!(ev.ctrlKey||ev.metaKey)) return;
@@ -1061,23 +1089,28 @@ function renderSet(){
       <td><button class="btn sm gray" onclick="delIncome('${k}')">刪除</button></td></tr>`).join('')+'</tbody></table></div>'
     : '<div class="empty">尚未登錄任何入帳</div>';
 
-  document.getElementById('member-list').innerHTML= state.members.length? state.members.map((m,i)=>
-    `<div class="mtag">${esc(m)}<span class="x" onclick="delMember(${i})">×</span></div>`).join('') : '<div class="empty">尚無成員</div>';
+  document.getElementById('member-list').innerHTML= state.members.length? state.members.map(m=>
+    `<div class="mtag">${esc(m)}<span class="x" onclick="delMember(decodeURIComponent('${jsArg(m)}'))">×</span></div>`).join('') : '<div class="empty">尚無成員</div>';
 
   document.getElementById('set-taxid').textContent=TAX_ID;
   document.getElementById('set-ver').textContent=APP_VER;
-  document.getElementById('set-opening').value=state.opening||0;
+  const op=document.getElementById('set-opening');
+  if(document.activeElement!==op) op.value=state.opening||0;
   document.getElementById('set-cloud').textContent=getCloudUrl()+DB_REF;
 }
 function loadIncomeForm(){
   const ym=document.getElementById('inc-month').value;
   const d=state.income[ym]||{};
-  document.getElementById('inc-amt').value=d.amount||'';
-  document.getElementById('inc-note').value=d.note||'';
+  const a=document.getElementById('inc-amt'), n=document.getElementById('inc-note');
+  // 正在打字時不要被雲端回音重繪蓋掉
+  if(document.activeElement===a||document.activeElement===n) return;
+  a.value=d.amount||'';
+  n.value=d.note||'';
 }
 function setMe(v){ _me=v; localStorage.setItem(ME_KEY,v); showToast(v?('已設定為 '+v):'已清除'); }
 // 清掉快取重抓最新版（手機上偶爾會卡在舊版）
 async function forceUpdate(){
+  if(!navigator.onLine){ showToast('目前離線，等有網路再更新（清掉快取會開不起來）','warn'); return; }
   showToast('更新中…');
   try{
     if('serviceWorker' in navigator){
@@ -1127,8 +1160,9 @@ function addMember(){
     [{path:'members', before:state.members.slice(), after:state.members.concat([v])}]);
   showToast('已新增 '+v,'ok');
 }
-function delMember(i){
-  const n=state.members[i];
+function delMember(n){
+  const i=state.members.indexOf(n);       // 用名字找，index 可能因雲端同步早就位移
+  if(i<0) return;
   const used=expList().filter(e=>e.payer===n).length;
   if(!confirm(`移除成員「${n}」？`+(used?`\n\n他有 ${used} 筆代墊紀錄，紀錄會保留不受影響。`:''))) return;
   const after=state.members.slice(); after.splice(i,1);
@@ -1145,8 +1179,9 @@ function saveOpening(v){
 // 支出 Modal
 // ============================================================
 function openExp(id){
-  editId=id||null;
   const e=id?state.expenses[id]:null;
+  if(id&&!e){ showToast('這筆資料已被刪除','warn'); renderAll(); return; }   // 點到別人剛刪掉的列
+  editId=id||null;
   document.getElementById('exp-mtitle').textContent=e?'編輯支出':'新增支出';
   const dEl=document.getElementById('m-date');
   dEl.max=todayStr();                                  // 不可選未來日期
@@ -1180,15 +1215,18 @@ function openExp(id){
   document.getElementById('exp-mask').classList.add('on');
   setTimeout(()=>document.getElementById('m-purpose').focus(),80);
 }
-function closeExp(){ document.getElementById('exp-mask').classList.remove('on'); editId=null; mPhotos=[]; mRemoved=[]; }
+let _saving=false;
+function closeExp(){ document.getElementById('exp-mask').classList.remove('on'); editId=null; mPhotos=[]; mRemoved=[]; _saving=false; }
 function saveExp(){
   const date=document.getElementById('m-date').value;
-  const amount=Number(document.getElementById('m-amt').value)||0;
+  const amount=Math.round(Number(document.getElementById('m-amt').value))||0;
   const purpose=document.getElementById('m-purpose').value.trim();
   if(!date){ showToast('請選擇日期','warn'); return; }
   if(date>todayStr()){ showToast('支出日期不能填未來日期','warn'); return; }
   if(!purpose){ showToast('請填寫支出用途','warn'); return; }
   if(amount<=0){ showToast('請填寫金額','warn'); return; }
+  if(_saving) return;                    // 上傳中連點儲存會建出重複的兩筆
+  _saving=true;
   const id=editId||uid();
   const old=state.expenses[id]||{};
   const wasEdit=!!editId;
@@ -1268,6 +1306,7 @@ function pickPhoto(inp){
   document.getElementById('m-photo-tip').textContent='處理 '+imgs.length+' 張照片中…';
   Promise.all(imgs.map(f=>compressImage(f).then(d=>({ok:true,d})).catch(()=>({ok:false}))))
     .then(res=>{
+      if(!document.getElementById('exp-mask').classList.contains('on')) return;   // 視窗已關，丟棄
       let added=0,kb=0;
       res.forEach(r=>{ if(r.ok){ mPhotos.push({pid:uid(),data:r.d,isNew:true}); added++; kb+=Math.round(r.d.length/1400); } });
       renderPhotoGrid();
@@ -1372,13 +1411,16 @@ function clearSig(){
   if(_sigCtx) _sigCtx.clearRect(0,0,cv.width,cv.height);
   _sigDrawn=false; document.getElementById('sigpad-wrap').classList.remove('drawn');
 }
-function closeSig(){ document.getElementById('sig-mask').classList.remove('on'); _sigItems=[]; }
+let _sigSaving=false;
+function closeSig(){ document.getElementById('sig-mask').classList.remove('on'); _sigItems=[]; _sigSaving=false; }
 function confirmSig(){
   if(!_sigDrawn){ showToast('請先簽名','warn'); return; }
   if(!_filesRef){ showToast('雲端未連線，簽名無法留存','warn'); return; }
+  if(_sigSaving) return;                 // 儲存中連點會存兩張簽名、寫兩次
+  _sigSaving=true;
   // 以「此刻」的最新資料為準，不用開視窗當時的快照（期間可能被其他裝置改過）
   const items=_sigItems.map(x=>state.expenses[x.id]).filter(e=>e&&e.status!=='paid');
-  if(!items.length){ closeSig(); showToast('這些項目已被其他人處理過了','warn'); renderAll(); return; }
+  if(!items.length){ closeSig(); showToast('這些項目已被其他人處理過了','warn'); renderAll(); return; }   // closeSig 已重設 _sigSaving
   const img=document.getElementById('sigpad').toDataURL('image/png');
   const sigId=uid(), at=Date.now();
   const name=items[0].payer||'', tot=sum(items);
@@ -1392,7 +1434,7 @@ function confirmSig(){
     closeSig();
     applyChange((name||'代墊者')+' 簽收 '+nt(tot)+'（'+items.length+' 筆）',changes);
     showToast('✔ '+(name||'代墊者')+' 已簽收 '+nt(tot),'ok');
-  }).catch(err=>showToast('簽名儲存失敗：'+err.message,'warn'));
+  }).catch(err=>{ _sigSaving=false; showToast('簽名儲存失敗：'+err.message,'warn'); });
 }
 document.getElementById('sig-mask').addEventListener('click',ev=>{ if(ev.target.id==='sig-mask') closeSig(); });
 window.addEventListener('resize',()=>{ if(document.getElementById('sig-mask').classList.contains('on')&&!_sigDrawn) initSigPad(); });
@@ -1557,7 +1599,9 @@ function mpYear(d){ _mpYear+=d; drawMonthPicker(); }
 function drawMonthPicker(){
   document.getElementById('mp-year').textContent=_mpYear+' 年';
   const cur=document.getElementById(_mpTarget).value;
-  const have=new Set(allMonths());
+  // 金點只標「真的有資料」的月份（allMonths 會多塞檢視月/本月，不能用）
+  const have=new Set(Object.keys(state.income||{}));
+  expList().forEach(e=>{ if(e.date) have.add(ymOfDate(e.date)); });
   const today=ymOf(new Date());
   let h='';
   for(let m=1;m<=12;m++){
